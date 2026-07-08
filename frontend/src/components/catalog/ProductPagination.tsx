@@ -1,0 +1,53 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+type ProductPaginationProps = {
+  page: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+  onPageChange: (page: number) => void
+}
+
+export function ProductPagination({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+}: ProductPaginationProps) {
+  if (totalPages <= 1) {
+    return null
+  }
+
+  const start = (page - 1) * pageSize + 1
+  const end = Math.min(page * pageSize, totalItems)
+
+  return (
+    <div className="mt-8 flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-500">
+        Mostrando {start}-{end} de {totalItems} produtos
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          aria-label="Pagina anterior"
+          disabled={page === 1}
+          onClick={() => onPageChange(page - 1)}
+          className="grid size-10 place-items-center rounded-xl border bg-white text-brand-navy transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+        <span className="min-w-24 text-center text-sm font-semibold text-brand-navy">
+          {page} de {totalPages}
+        </span>
+        <button
+          aria-label="Proxima pagina"
+          disabled={page === totalPages}
+          onClick={() => onPageChange(page + 1)}
+          className="grid size-10 place-items-center rounded-xl border bg-white text-brand-navy transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ChevronRight className="size-5" />
+        </button>
+      </div>
+    </div>
+  )
+}

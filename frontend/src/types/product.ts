@@ -1,0 +1,20 @@
+export type Product = {
+  id: string
+  ativo: boolean
+  name: string
+  description: string
+  price: number
+  image: string
+  categoria: string
+  estoque: number
+  status?:
+    | 'DISPONIVEL'
+    | 'SEM_ESTOQUE'
+    | 'EM_PRODUCAO'
+    | 'EM_BREVE'
+    | 'PRE_VENDA'
+  availableAt?: string
+  statusMessage?: string
+  createdAt: string
+  updatedAt: string
+}
