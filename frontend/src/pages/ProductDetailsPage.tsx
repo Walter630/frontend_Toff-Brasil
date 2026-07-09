@@ -1,20 +1,26 @@
 import {
   ArrowLeft,
+  Heart,
   LoaderCircle,
   MessageCircle,
   ShoppingCart,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { getApiErrorMessage } from '../lib/api-error'
+import { savePendingCartProduct } from '../lib/cart-auth'
 import {
   getAvailabilityClasses,
   getProductAvailability,
 } from '../lib/product-status'
+import { getProductPublicName } from '../lib/product-display'
 import { localProductsEvent } from '../lib/local-product-db'
 import { getProductWhatsappUrl } from '../lib/whatsapp'
+import { authService } from '../services/auth-service'
+import { cartService } from '../services/cart-service'
+import { favoriteService } from '../services/favorite-service'
 import { productService } from '../services/product-service'
 import type { Product } from '../types/product'
 
@@ -25,10 +31,63 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 export function ProductDetailsPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [addingToCart, setAddingToCart] = useState(false)
+  const [favoriting, setFavoriting] = useState(false)
   const [message, setMessage] = useState('')
   const availability = product ? getProductAvailability(product) : null
+  const publicName = product ? getProductPublicName(product) : ''
+
+  async function handleAddToCart() {
+    if (!product) {
+      return
+    }
+
+    setMessage('')
+
+    if (!authService.isAuthenticated()) {
+      savePendingCartProduct(product.id)
+      navigate('/login', { state: { from: '/carrinho' } })
+      return
+    }
+
+    setAddingToCart(true)
+
+    try {
+      await cartService.addItem(product.id)
+      setMessage('Produto adicionado ao carrinho.')
+    } catch (error) {
+      setMessage(getApiErrorMessage(error, 'Nao foi possivel adicionar ao carrinho.'))
+    } finally {
+      setAddingToCart(false)
+    }
+  }
+
+  async function handleFavorite() {
+    if (!product) {
+      return
+    }
+
+    setMessage('')
+
+    if (!authService.isAuthenticated()) {
+      navigate('/login', { state: { from: `/produtos/${product.id}` } })
+      return
+    }
+
+    setFavoriting(true)
+
+    try {
+      await favoriteService.add(product.id)
+      setMessage('Produto adicionado aos favoritos.')
+    } catch (error) {
+      setMessage(getApiErrorMessage(error, 'Nao foi possivel favoritar produto.'))
+    } finally {
+      setFavoriting(false)
+    }
+  }
 
   useEffect(() => {
     const loadProduct = (showLoading = true) => {
@@ -81,7 +140,7 @@ export function ProductDetailsPage() {
             <div className="grid aspect-square place-items-center bg-white p-8">
               <img
                 src={product.image}
-                alt={product.name}
+                alt={publicName}
                 className="max-h-full max-w-full object-contain"
                 onError={(event) => {
                   event.currentTarget.src = '/products/dragao-articulado.webp'
@@ -102,7 +161,7 @@ export function ProductDetailsPage() {
                 </span>
               )}
               <h1 className="mt-3 text-4xl font-bold text-brand-navy">
-                {product.name}
+                {publicName}
               </h1>
               <p className="mt-5 leading-7 text-slate-500">
                 {product.description}
@@ -122,18 +181,31 @@ export function ProductDetailsPage() {
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"
-                    disabled
-                    title="Carrinho temporariamente indisponivel"
-                    className="inline-flex h-12 cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-200 px-6 text-sm font-semibold text-slate-500"
+                    onClick={() => void handleAddToCart()}
+                    disabled={addingToCart}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand-orange px-6 text-sm font-semibold text-white transition hover:bg-brand-orange-dark disabled:pointer-events-none disabled:opacity-60"
                   >
                     <ShoppingCart className="size-4" />
-                    Carrinho indisponivel
+                    {addingToCart ? 'Adicionando...' : 'Adicionar ao carrinho'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleFavorite()}
+                    disabled={favoriting}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-brand-navy transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {favoriting ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Heart className="size-4" />
+                    )}
+                    Favoritar
                   </button>
                   <a
                     href={getProductWhatsappUrl(product)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 text-sm font-semibold text-white transition hover:bg-green-700"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-green-600 px-6 text-sm font-semibold text-white transition hover:bg-green-700 sm:col-span-2"
                   >
                     <MessageCircle className="size-4" />
                     Falar com o gerente

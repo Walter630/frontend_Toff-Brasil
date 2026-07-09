@@ -1,5 +1,6 @@
 import type { CartItemResponse, CartResponse } from '../types/cart'
 import type { Product } from '../types/product'
+import { getProductPublicName, stripBrandFromName } from './product-display'
 
 const managerWhatsapp = import.meta.env.VITE_MANAGER_WHATSAPP?.replace(/\D/g, '')
 
@@ -10,7 +11,9 @@ const currency = new Intl.NumberFormat('pt-BR', {
 
 export function getProductWhatsappUrl(product: Product) {
   const message = [
-    `Ola, tenho interesse neste item da Toff Brasil: ${product.name}.`,
+    `Ola, tenho interesse neste item da Toff Brasil: ${getProductPublicName(
+      product,
+    )}.`,
     `Categoria: ${product.categoria}.`,
     'Quantidade solicitada: 1 unidade.',
     `Preco: ${currency.format(product.price)}.`,
@@ -22,13 +25,15 @@ export function getProductWhatsappUrl(product: Product) {
 }
 
 function getCartItemName(item: CartItemResponse, index: number) {
-  return (
+  const name =
+    item.name ??
     item.product?.name ??
     item.produto?.name ??
     item.productId ??
     item.produtoId ??
     `Item ${index + 1}`
-  )
+
+  return stripBrandFromName(name)
 }
 
 function getCartItemQuantity(item: CartItemResponse) {

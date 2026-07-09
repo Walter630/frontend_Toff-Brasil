@@ -1,27 +1,49 @@
 import type { FormEvent } from 'react'
 
-import { BadgePercent, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
-import { useState } from 'react'
+import {
+  BadgePercent,
+  LoaderCircle,
+  Plus,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { getApiErrorMessage } from '../lib/api-error'
 import { couponService, type DiscountCoupon } from '../services/coupon-service'
 
 export function CouponsPage() {
-  const [coupons, setCoupons] = useState<DiscountCoupon[]>(couponService.list)
+  const [coupons, setCoupons] = useState<DiscountCoupon[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
   const [code, setCode] = useState('')
   const [percentage, setPercentage] = useState('10')
   const [minimumOrder, setMinimumOrder] = useState('0')
   const [description, setDescription] = useState('')
 
-  const persistCoupons = (nextCoupons: DiscountCoupon[]) => {
-    setCoupons(nextCoupons)
-    couponService.save(nextCoupons)
+  async function loadCoupons() {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      setCoupons(await couponService.list())
+    } catch (error) {
+      setCoupons(couponService.defaultCoupons())
+      setMessage(getApiErrorMessage(error, 'Nao foi possivel carregar cupons.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setMessage('')
+
     const parsedPercentage = Number(percentage)
     const parsedMinimumOrder = Number(minimumOrder)
 
@@ -29,9 +51,10 @@ export function CouponsPage() {
       return
     }
 
-    persistCoupons([
-      {
-        id: crypto.randomUUID(),
+    setSaving(true)
+
+    try {
+      const createdCoupon = await couponService.create({
         code: code.trim().toUpperCase(),
         percentage: parsedPercentage,
         minimumOrder: Number.isFinite(parsedMinimumOrder)
@@ -39,22 +62,40 @@ export function CouponsPage() {
           : 0,
         active: true,
         description: description.trim() || 'Cupom de desconto Toff Brasil.',
-      },
-      ...coupons,
-    ])
-    setCode('')
-    setPercentage('10')
-    setMinimumOrder('0')
-    setDescription('')
+      })
+
+      setCoupons((current) => [createdCoupon, ...current])
+      setCode('')
+      setPercentage('10')
+      setMinimumOrder('0')
+      setDescription('')
+      setMessage('Cupom cadastrado no backend.')
+    } catch (error) {
+      setMessage(getApiErrorMessage(error, 'Nao foi possivel cadastrar cupom.'))
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const toggleCoupon = (id: string) => {
-    persistCoupons(
-      coupons.map((coupon) =>
-        coupon.id === id ? { ...coupon, active: !coupon.active } : coupon,
-      ),
-    )
+  const toggleCoupon = async (coupon: DiscountCoupon) => {
+    setMessage('')
+    const nextCoupon = { ...coupon, active: !coupon.active }
+
+    try {
+      const updatedCoupon = await couponService.update(nextCoupon)
+      setCoupons((current) =>
+        current.map((item) =>
+          item.id === updatedCoupon.id ? updatedCoupon : item,
+        ),
+      )
+    } catch (error) {
+      setMessage(getApiErrorMessage(error, 'Nao foi possivel atualizar cupom.'))
+    }
   }
+
+  useEffect(() => {
+    void loadCoupons()
+  }, [])
 
   return (
     <DashboardLayout>
@@ -72,6 +113,10 @@ export function CouponsPage() {
               campanhas ativas.
             </p>
           </div>
+          <Button variant="secondary" onClick={() => void loadCoupons()}>
+            <RefreshCw className="size-4" />
+            Atualizar
+          </Button>
           <div className="inline-flex w-fit items-center gap-3 rounded-2xl border bg-white px-5 py-4">
             <BadgePercent className="size-5 text-brand-orange" />
             <div>
@@ -82,6 +127,12 @@ export function CouponsPage() {
             </div>
           </div>
         </div>
+
+        {message && (
+          <p className="mt-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-brand-navy">
+            {message}
+          </p>
+        )}
 
         <section className="mt-8 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
           <form
@@ -123,14 +174,22 @@ export function CouponsPage() {
                 placeholder="Campanha ou regra interna"
               />
             </div>
-            <Button type="submit" className="mt-5 w-full">
-              <Plus className="size-4" />
-              Cadastrar cupom
+            <Button type="submit" className="mt-5 w-full" disabled={saving}>
+              {saving ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+              {saving ? 'Cadastrando...' : 'Cadastrar cupom'}
             </Button>
           </form>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {coupons.map((coupon) => (
+            {loading ? (
+              <div className="grid min-h-56 place-items-center rounded-2xl border bg-white md:col-span-2">
+                <LoaderCircle className="size-9 animate-spin text-brand-orange" />
+              </div>
+            ) : coupons.map((coupon) => (
               <article key={coupon.id} className="rounded-2xl border bg-white p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -145,7 +204,7 @@ export function CouponsPage() {
                     aria-label={
                       coupon.active ? 'Desativar cupom' : 'Ativar cupom'
                     }
-                    onClick={() => toggleCoupon(coupon.id)}
+                    onClick={() => void toggleCoupon(coupon)}
                     className="rounded-xl p-2 text-brand-orange hover:bg-orange-50"
                   >
                     {coupon.active ? (

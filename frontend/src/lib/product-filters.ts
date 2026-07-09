@@ -1,4 +1,5 @@
 import type { Product } from '../types/product'
+import { getProductBrand } from './product-display'
 
 export const productMaterialOptions = [
   { label: 'PLA', value: 'PLA' },
@@ -38,7 +39,11 @@ function normalizeText(value: string) {
 }
 
 function productText(product: Product) {
-  return normalizeText(`${product.name} ${product.description}`)
+  return normalizeText(
+    `${product.name} ${product.description} ${product.marca ?? ''} ${
+      product.brand ?? ''
+    }`,
+  )
 }
 
 export function filterProductsByDetails(
@@ -50,8 +55,13 @@ export function filterProductsByDetails(
   return products.filter((product) => {
     const text = productText(product)
     const matchesMaterial = material === 'Todos' || text.includes(material)
+    const productBrand = getProductBrand(product)
+    const normalizedProductBrand = productBrand
+      ? normalizeText(productBrand)
+      : undefined
     const matchesBrand =
       brand === 'Todos' ||
+      normalizedProductBrand === brand ||
       text.includes(brand) ||
       (brand === 'TINMORY' && text.includes('TINMORRY'))
     const matchesType =

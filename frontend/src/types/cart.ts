@@ -2,6 +2,9 @@ export type CartItemResponse = {
   id: string
   productId?: string
   produtoId?: string
+  name?: string
+  image?: string | null
+  price?: number
   quantity?: number
   quantidade?: number
   unitPrice?: number

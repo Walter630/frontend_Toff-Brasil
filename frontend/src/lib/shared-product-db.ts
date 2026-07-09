@@ -41,6 +41,13 @@ function getSharedProductsApiUrl() {
     return configuredUrl.replace(/\/$/, '')
   }
 
+  if (
+    import.meta.env.VITE_PRODUCTS_SOURCE === 'api' ||
+    import.meta.env.VITE_AUTH_SOURCE === 'api'
+  ) {
+    return null
+  }
+
   if (typeof window === 'undefined') {
     return null
   }

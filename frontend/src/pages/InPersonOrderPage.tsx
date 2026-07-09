@@ -1,14 +1,27 @@
 import type { FormEvent } from 'react'
 
-import { FileText, Printer, ReceiptText, Save } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import {
+  Barcode,
+  CheckCircle2,
+  FileText,
+  LoaderCircle,
+  Printer,
+  ReceiptText,
+  Save,
+  ScanLine,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { BarcodeScannerModal } from '../components/barcode/BarcodeScannerModal'
 import { CatalogState } from '../components/catalog/CatalogState'
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { useProducts } from '../hooks/useProducts'
-import { couponService } from '../services/coupon-service'
+import { getApiErrorMessage } from '../lib/api-error'
+import { getProductPublicName } from '../lib/product-display'
+import { couponService, type DiscountCoupon } from '../services/coupon-service'
+import { orderService } from '../services/order-service'
 
 const currency = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -52,15 +65,19 @@ function saveOrders(orders: LocalOrder[]) {
 export function InPersonOrderPage() {
   const { products, loading, error, reload } = useProducts()
   const [orders, setOrders] = useState<LocalOrder[]>(getOrders)
+  const [coupons, setCoupons] = useState<DiscountCoupon[]>([])
+  const [saving, setSaving] = useState(false)
+  const [submitMessage, setSubmitMessage] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerDocument, setCustomerDocument] = useState('')
   const [productId, setProductId] = useState('')
+  const [barcodeInput, setBarcodeInput] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [quantity, setQuantity] = useState('1')
   const [couponCode, setCouponCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('Pix')
   const [notes, setNotes] = useState('')
-  const coupons = couponService.list()
 
   const selectedProduct = useMemo(
     () => products.find((product) => product.id === productId) ?? products[0],
@@ -77,41 +94,109 @@ export function InPersonOrderPage() {
   const discount = activeCoupon ? subtotal * (activeCoupon.percentage / 100) : 0
   const total = Math.max(subtotal - discount, 0)
 
+  const findProductByBarcode = (code: string) => {
+    const normalizedCode = code.trim()
+
+    if (!normalizedCode) {
+      return undefined
+    }
+
+    return products.find((product) =>
+      [product.codigoBarras, product.barcode, product.id]
+        .filter(Boolean)
+        .some((value) => value === normalizedCode),
+    )
+  }
+
+  const selectProductFromBarcode = (code: string) => {
+    const product = findProductByBarcode(code)
+
+    if (!product) {
+      setSubmitMessage(`Codigo ${code} nao encontrado no catalogo.`)
+      return
+    }
+
+    const sameProduct = selectedProduct?.id === product.id
+    setProductId(product.id)
+    setQuantity((currentQuantity) =>
+      sameProduct ? String((Number(currentQuantity) || 1) + 1) : '1',
+    )
+    setBarcodeInput(code)
+    setSubmitMessage(`${getProductPublicName(product)} selecionado pelo bip.`)
+  }
+
   const persistOrder = (order: LocalOrder) => {
     const nextOrders = [order, ...orders]
     setOrders(nextOrders)
     saveOrders(nextOrders)
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setSubmitMessage('')
 
     if (!selectedProduct || !customerName.trim()) {
       return
     }
 
-    persistOrder({
-      id: crypto.randomUUID(),
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      customerDocument: customerDocument.trim(),
-      productName: selectedProduct.name,
-      quantity: parsedQuantity,
-      subtotal,
-      discount,
-      total,
-      couponCode: activeCoupon?.code ?? '',
-      paymentMethod,
-      notes: notes.trim(),
-      createdAt: new Date().toLocaleString('pt-BR'),
-    })
-    setCustomerName('')
-    setCustomerPhone('')
-    setCustomerDocument('')
-    setQuantity('1')
-    setCouponCode('')
-    setNotes('')
+    setSaving(true)
+
+    try {
+      const createdOrder = await orderService.create({
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerDocument: customerDocument.trim(),
+        productId: selectedProduct.id,
+        quantity: parsedQuantity,
+        couponCode: activeCoupon?.code,
+        paymentMethod,
+        notes: notes.trim(),
+        status: 'CONFIRMADO',
+        confirmarVenda: true,
+        baixarEstoque: true,
+      })
+
+      persistOrder({
+        id: createdOrder.id || crypto.randomUUID(),
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerDocument: customerDocument.trim(),
+        productName: getProductPublicName(selectedProduct),
+        quantity: parsedQuantity,
+        subtotal,
+        discount,
+        total: createdOrder.total || total,
+        couponCode: activeCoupon?.code ?? '',
+        paymentMethod,
+        notes: notes.trim(),
+        createdAt: createdOrder.createdAt ?? new Date().toLocaleString('pt-BR'),
+      })
+      setCustomerName('')
+      setCustomerPhone('')
+      setCustomerDocument('')
+      setQuantity('1')
+      setBarcodeInput('')
+      setCouponCode('')
+      setNotes('')
+      setSubmitMessage('Pedido enviado ao backend.')
+    } catch (error) {
+      setSubmitMessage(getApiErrorMessage(error, 'Nao foi possivel gerar pedido.'))
+    } finally {
+      setSaving(false)
+    }
   }
+
+  useEffect(() => {
+    async function loadCoupons() {
+      try {
+        setCoupons(await couponService.list())
+      } catch {
+        setCoupons(couponService.defaultCoupons())
+      }
+    }
+
+    void loadCoupons()
+  }, [])
 
   return (
     <DashboardLayout>
@@ -154,6 +239,42 @@ export function InPersonOrderPage() {
               </h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border bg-slate-50 p-3 md:col-span-2">
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <label htmlFor="barcode-order" className="block min-w-0 flex-1">
+                      <span className="mb-2 flex items-center gap-2 text-sm font-medium text-brand-navy">
+                        <Barcode className="size-4 text-brand-orange" />
+                        Codigo de barras
+                      </span>
+                      <input
+                        id="barcode-order"
+                        value={barcodeInput}
+                        onChange={(event) => setBarcodeInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            selectProductFromBarcode(barcodeInput)
+                          }
+                        }}
+                        placeholder="Passe o bip ou digite o codigo"
+                        className="h-12 w-full rounded-xl border bg-white px-4 text-sm text-brand-ink outline-none transition placeholder:text-slate-400 focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                      />
+                    </label>
+                    <Button
+                      className="self-end"
+                      variant="secondary"
+                      onClick={() => setScannerOpen(true)}
+                    >
+                      <ScanLine className="size-4" />
+                      Camera
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Leitor USB funciona como teclado: clique no campo, passe o
+                    produto e pressione Enter se o leitor nao enviar sozinho.
+                  </p>
+                </div>
+
                 <Input
                   id="customer-name"
                   label="Nome do cliente"
@@ -188,7 +309,7 @@ export function InPersonOrderPage() {
                   >
                     {products.map((product) => (
                       <option key={product.id} value={product.id}>
-                        {product.name}
+                        {getProductPublicName(product)}
                       </option>
                     ))}
                   </select>
@@ -238,9 +359,19 @@ export function InPersonOrderPage() {
                 </label>
               </div>
 
-              <Button type="submit" className="mt-5 w-full">
-                <Save className="size-4" />
-                Gerar pedido
+              {submitMessage && (
+                <p className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-brand-navy">
+                  {submitMessage}
+                </p>
+              )}
+
+              <Button type="submit" className="mt-5 w-full" disabled={saving}>
+                {saving ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {saving ? 'Confirmando venda...' : 'Confirmar venda e baixar estoque'}
               </Button>
             </form>
 
@@ -261,7 +392,9 @@ export function InPersonOrderPage() {
                 <div className="flex justify-between gap-4">
                   <span className="text-slate-500">Produto</span>
                   <strong className="text-right text-brand-navy">
-                    {selectedProduct?.name ?? 'Selecione um produto'}
+                    {selectedProduct
+                      ? getProductPublicName(selectedProduct)
+                      : 'Selecione um produto'}
                   </strong>
                 </div>
                 <div className="flex justify-between gap-4">
@@ -284,6 +417,11 @@ export function InPersonOrderPage() {
                   Cupom {activeCoupon.code} aplicado.
                 </p>
               )}
+              <p className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 className="size-4" />
+                Ao gerar o pedido, o front envia sinal de venda confirmada e
+                baixa de estoque para o backend.
+              </p>
             </aside>
           </section>
         )}
@@ -316,6 +454,11 @@ export function InPersonOrderPage() {
             ))}
           </div>
         </section>
+        <BarcodeScannerModal
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={selectProductFromBarcode}
+        />
       </main>
     </DashboardLayout>
   )

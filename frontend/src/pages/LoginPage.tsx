@@ -115,6 +115,13 @@ export function LoginPage() {
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-500">
+        Ainda nao tem conta?{' '}
+        <Link to="/cadastro" className="font-semibold text-brand-orange">
+          Criar conta
+        </Link>
+      </p>
+
+      <p className="mt-3 text-center text-sm text-slate-500">
         Quer apenas ver os produtos?{' '}
         <Link to="/catalogo" className="font-semibold text-brand-orange">
           Ir para o catalogo

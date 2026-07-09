@@ -6,6 +6,8 @@ export type Product = {
   price: number
   image: string
   categoria: string
+  marca?: string
+  brand?: string
   estoque: number
   status?:
     | 'DISPONIVEL'
@@ -15,6 +17,8 @@ export type Product = {
     | 'PRE_VENDA'
   availableAt?: string
   statusMessage?: string
+  codigoBarras?: string
+  barcode?: string
   createdAt: string
   updatedAt: string
 }

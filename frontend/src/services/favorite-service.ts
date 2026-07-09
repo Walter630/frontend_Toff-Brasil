@@ -1,25 +1,66 @@
-const FAVORITES_KEY = 'toffbr:favorites'
+import { api } from '../lib/api'
+import type { Product } from '../types/product'
 
-/**
- * Favoritos ficam no navegador enquanto o backend não oferece uma rota própria.
- * A página pode migrar para uma API futuramente sem alterar os componentes.
- */
+type RawFavorite = Record<string, unknown>
+
+function normalizeFavorite(data: unknown): Product | null {
+  if (!data || typeof data !== 'object') {
+    return null
+  }
+
+  const favorite = data as RawFavorite
+  const product = (favorite.product ?? favorite.produto ?? favorite) as RawFavorite
+
+  if (!product.id && !product.name && !product.nome) {
+    return null
+  }
+
+  const now = new Date().toISOString()
+
+  return {
+    id: String(product.id ?? ''),
+    ativo: Boolean(product.ativo ?? true),
+    name: String(product.name ?? product.nome ?? ''),
+    description: String(product.description ?? product.descricao ?? ''),
+    price: Number(product.price ?? product.preco ?? 0),
+    image: String(product.image ?? product.imagem ?? ''),
+    categoria: String(product.categoria ?? 'FILAMENTOS'),
+    estoque: Number(product.estoque ?? 0),
+    status: String(product.status ?? 'DISPONIVEL') as Product['status'],
+    createdAt: String(product.createdAt ?? now),
+    updatedAt: String(product.updatedAt ?? now),
+  }
+}
+
+function normalizeFavoritesResponse(data: unknown) {
+  const values = Array.isArray(data)
+    ? data
+    : data && typeof data === 'object'
+      ? (data as Record<string, unknown>).favorites ??
+        (data as Record<string, unknown>).favoritos ??
+        (data as Record<string, unknown>).content ??
+        (data as Record<string, unknown>).data
+      : []
+
+  return Array.isArray(values)
+    ? values.flatMap((item) => {
+        const favorite = normalizeFavorite(item)
+        return favorite ? [favorite] : []
+      })
+    : []
+}
+
 export const favoriteService = {
-  list(): string[] {
-    try {
-      return JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? '[]') as string[]
-    } catch {
-      return []
-    }
+  async list() {
+    const { data } = await api.get('/favoritos')
+    return normalizeFavoritesResponse(data)
   },
 
-  toggle(productId: string) {
-    const favorites = this.list()
-    const next = favorites.includes(productId)
-      ? favorites.filter((id) => id !== productId)
-      : [...favorites, productId]
+  async add(productId: string) {
+    await api.post(`/favoritos/${encodeURIComponent(productId)}`)
+  },
 
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next))
-    return next
+  async remove(productId: string) {
+    await api.delete(`/favoritos/${encodeURIComponent(productId)}`)
   },
 }

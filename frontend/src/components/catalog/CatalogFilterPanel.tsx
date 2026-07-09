@@ -72,14 +72,14 @@ export function CatalogFilterPanel({
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   return (
-    <section className="mt-5">
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="mt-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="inline-flex items-center gap-2 font-bold text-brand-navy">
             <SlidersHorizontal className="size-4 text-brand-orange" />
             Filtros
           </h3>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs text-slate-500 sm:text-sm">
             {resultCount} produtos encontrados
           </p>
         </div>
@@ -113,7 +113,7 @@ export function CatalogFilterPanel({
       </div>
 
       {filtersOpen && (
-        <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-3 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
           <FilterSelect
             label="Categoria"
             value={category}

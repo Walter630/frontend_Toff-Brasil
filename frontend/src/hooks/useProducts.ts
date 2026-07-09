@@ -8,6 +8,7 @@ import type { Product } from '../types/product'
 type ProductFilters = {
   name?: string
   categoria?: string
+  codigoBarras?: string
 }
 
 /**
@@ -17,6 +18,7 @@ type ProductFilters = {
 export function useProducts(filters: ProductFilters = {}) {
   const name = filters.name
   const categoria = filters.categoria
+  const codigoBarras = filters.codigoBarras
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -28,7 +30,7 @@ export function useProducts(filters: ProductFilters = {}) {
     }
 
     try {
-      setProducts(await productService.list({ name, categoria }))
+      setProducts(await productService.list({ name, categoria, codigoBarras }))
     } catch (requestError) {
       if (!showLoading) {
         return
@@ -45,7 +47,7 @@ export function useProducts(filters: ProductFilters = {}) {
         setLoading(false)
       }
     }
-  }, [categoria, name])
+  }, [categoria, codigoBarras, name])
 
   useEffect(() => {
     void reload()

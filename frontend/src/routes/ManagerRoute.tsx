@@ -12,7 +12,11 @@ type ManagerRouteProps = {
 export function ManagerRoute({ children }: ManagerRouteProps) {
   return (
     <ProtectedRoute>
-      {authService.isManager() ? children : <Navigate to="/catalogo" replace />}
+      {import.meta.env.DEV || authService.canManageStore() ? (
+        children
+      ) : (
+        <Navigate to="/catalogo" replace />
+      )}
     </ProtectedRoute>
   )
 }

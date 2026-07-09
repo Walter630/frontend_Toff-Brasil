@@ -7,6 +7,7 @@ import {
   PackagePlus,
   Pencil,
   RefreshCw,
+  ScanLine,
   Search,
   Trash2,
   Upload,
@@ -14,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { BarcodeScannerModal } from '../components/barcode/BarcodeScannerModal'
 import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -36,6 +38,7 @@ type ProductForm = {
   description: string
   price: string
   estoque: string
+  codigoBarras: string
   categoria: ProductCreatePayload['categoria']
   status: NonNullable<ProductCreatePayload['status']>
 }
@@ -45,6 +48,7 @@ const initialForm: ProductForm = {
   description: '',
   price: '',
   estoque: '0',
+  codigoBarras: '',
   categoria: 'FILAMENTOS',
   status: 'DISPONIVEL',
 }
@@ -78,6 +82,7 @@ export function AdminProductsPage() {
   const [adminSearch, setAdminSearch] = useState('')
   const [adminCategory, setAdminCategory] = useState('Todos')
   const [adminPage, setAdminPage] = useState(1)
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false)
   const editingProduct = useMemo(
     () => products.find((product) => product.id === editingId) ?? null,
     [editingId, products],
@@ -154,6 +159,7 @@ export function AdminProductsPage() {
       description: product.description,
       price: String(product.price),
       estoque: String(product.estoque),
+      codigoBarras: product.codigoBarras ?? product.barcode ?? '',
       categoria: product.categoria as ProductCreatePayload['categoria'],
       status: product.status ?? 'DISPONIVEL',
     })
@@ -228,6 +234,7 @@ export function AdminProductsPage() {
         categoria: form.categoria,
         price,
         estoque,
+        codigoBarras: form.codigoBarras.trim() || undefined,
         status: form.status,
       }
 
@@ -348,6 +355,27 @@ export function AdminProductsPage() {
                 step="1"
                 required
               />
+              <div className="sm:col-span-2">
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <Input
+                    id="product-barcode"
+                    label="Codigo de barras"
+                    value={form.codigoBarras}
+                    onChange={updateField('codigoBarras')}
+                    inputMode="numeric"
+                    placeholder="Escaneie ou digite o codigo"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-12"
+                    onClick={() => setBarcodeScannerOpen(true)}
+                  >
+                    <ScanLine className="size-4" />
+                    Escanear
+                  </Button>
+                </div>
+              </div>
               <label htmlFor="product-status" className="block sm:col-span-2">
                 <span className="mb-2 block text-sm font-medium text-brand-navy">
                   Status
@@ -625,6 +653,13 @@ export function AdminProductsPage() {
             )}
           </aside>
         </div>
+        <BarcodeScannerModal
+          open={barcodeScannerOpen}
+          onClose={() => setBarcodeScannerOpen(false)}
+          onScan={(code) =>
+            setForm((current) => ({ ...current, codigoBarras: code }))
+          }
+        />
       </main>
     </DashboardLayout>
   )

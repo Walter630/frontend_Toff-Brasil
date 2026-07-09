@@ -5,15 +5,22 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AccountPage } from '../pages/AccountPage'
 import { AdminProductsPage } from '../pages/AdminProductsPage'
 import { CatalogPage } from '../pages/CatalogPage'
-import { ComingSoonPage } from '../pages/ComingSoonPage'
+import { CartPage } from '../pages/CartPage'
+import { CheckoutPage } from '../pages/CheckoutPage'
+import { CouponsPage } from '../pages/CouponsPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { FavoritesPage } from '../pages/FavoritesPage'
+import { InPersonOrderPage } from '../pages/InPersonOrderPage'
+import { IntegrationsPage } from '../pages/IntegrationsPage'
 import { LandingPage } from '../pages/LandingPage'
 import { LoginPage } from '../pages/LoginPage'
+import { NotificationsPage } from '../pages/NotificationsPage'
 import { OrdersPage } from '../pages/OrdersPage'
 import { ProductDetailsPage } from '../pages/ProductDetailsPage'
 import { RegisterPage } from '../pages/RegisterPage'
+import { SettingsPage } from '../pages/SettingsPage'
 import { ManagerRoute } from './ManagerRoute'
+import { OperatorRoute } from './OperatorRoute'
 import { ProtectedRoute } from './ProtectedRoute'
 
 const protectedRoute = (page: ReactNode) => (
@@ -21,6 +28,7 @@ const protectedRoute = (page: ReactNode) => (
 )
 
 const managerRoute = (page: ReactNode) => <ManagerRoute>{page}</ManagerRoute>
+const operatorRoute = (page: ReactNode) => <OperatorRoute>{page}</OperatorRoute>
 
 export function AppRouter() {
   return (
@@ -34,61 +42,29 @@ export function AppRouter() {
         <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/produtos/:id" element={<ProductDetailsPage />} />
         <Route path="/favoritos" element={<FavoritesPage />} />
-        <Route
-          path="/carrinho"
-          element={
-            <ComingSoonPage
-              title="Carrinho temporariamente indisponivel"
-              description="Finalize pedidos pelo WhatsApp enquanto a integracao do carrinho com o backend e estabilizada."
-            />
-          }
-        />
+        <Route path="/carrinho" element={protectedRoute(<CartPage />)} />
+        <Route path="/checkout" element={protectedRoute(<CheckoutPage />)} />
         <Route path="/pedidos" element={protectedRoute(<OrdersPage />)} />
         <Route
           path="/pedido-presencial"
-          element={protectedRoute(
-            <ComingSoonPage
-              title="Pedido presencial em breve"
-              description="A venda assistida sera liberada quando as regras de atendimento e pedidos estiverem conectadas ao backend definitivo."
-            />,
-          )}
+          element={operatorRoute(<InPersonOrderPage />)}
         />
         <Route
           path="/cupons"
-          element={protectedRoute(
-            <ComingSoonPage
-              title="Cupons em breve"
-              description="A tela de cupons esta reservada para a area administrativa, mas permanece bloqueada enquanto a API oficial nao estiver pronta."
-            />,
-          )}
+          element={managerRoute(<CouponsPage />)}
         />
         <Route
           path="/notificacoes"
-          element={protectedRoute(
-            <ComingSoonPage
-              title="Notificacoes em breve"
-              description="A central de avisos administrativos sera liberada quando houver persistencia e permissao de gerente no backend."
-            />,
-          )}
+          element={managerRoute(<NotificationsPage />)}
         />
         <Route path="/conta" element={protectedRoute(<AccountPage />)} />
         <Route
           path="/configuracoes"
-          element={protectedRoute(
-            <ComingSoonPage
-              title="Configuracoes em breve"
-              description="As configuracoes do painel ficam bloqueadas por enquanto para evitar ajustes sem backend definitivo."
-            />,
-          )}
+          element={protectedRoute(<SettingsPage />)}
         />
         <Route
           path="/integracoes"
-          element={protectedRoute(
-            <ComingSoonPage
-              title="Integracoes em breve"
-              description="Odoo, marketplaces e demais integracoes serao conectados em uma etapa separada. O WhatsApp segue configurado."
-            />,
-          )}
+          element={managerRoute(<IntegrationsPage />)}
         />
         <Route
           path="/admin"

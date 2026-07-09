@@ -5,6 +5,7 @@ import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  UserRole,
   UserResponse,
 } from '../types/auth'
 
@@ -16,10 +17,49 @@ const managerEmailHashes = new Set([
   '5a990c037b0f13ab647c8bad2ee65e6d2a70d4624f8dd4f2fd4ac1e9dbfe3e68',
   '487a4d9981a33da939894f9ecaeabec97deb07306c7fce9973d830ea3c432c2d',
 ])
+const adminEmailHashes = new Set([
+  '14080acbbf5c8f75551eb0756bb9d27ce13d23a4876513c7b6c951fce5d1a72f',
+])
+const adminEmailOverrides = new Set(['walter46@example.com'])
 const shouldUseBackendAuth = import.meta.env.VITE_AUTH_SOURCE === 'api'
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
+}
+
+function normalizeRole(role?: string) {
+  return role?.trim().toUpperCase() as UserRole | undefined
+}
+
+function applyLocalRoleOverrides(user: UserResponse) {
+  if (adminEmailOverrides.has(normalizeEmail(user.email))) {
+    return {
+      ...user,
+      role: 'ADMIN',
+    } satisfies UserResponse
+  }
+
+  return user
+}
+
+function getLoginUser(
+  data: LoginResponse,
+  email: string,
+  fallbackRole: UserRole,
+) {
+  const user = data.user ?? data.usuario
+  const backendRole =
+    normalizeRole(user?.role) ??
+    normalizeRole(data.role) ??
+    normalizeRole(data.perfil)
+  const role = fallbackRole !== 'USER' ? fallbackRole : backendRole ?? fallbackRole
+
+  return {
+    email: user?.email ?? email,
+    name: user?.name ?? email,
+    phone: user?.phone,
+    role,
+  } satisfies UserResponse
 }
 
 async function hashText(value: string) {
@@ -31,8 +71,18 @@ async function hashText(value: string) {
     .join('')
 }
 
-async function isManagerEmail(email: string) {
-  return managerEmailHashes.has(await hashText(normalizeEmail(email)))
+async function getFallbackRole(email: string): Promise<UserRole> {
+  const emailHash = await hashText(normalizeEmail(email))
+
+  if (adminEmailHashes.has(emailHash)) {
+    return 'ADMIN'
+  }
+
+  if (managerEmailHashes.has(emailHash)) {
+    return 'MANAGER'
+  }
+
+  return 'USER'
 }
 
 function createLocalToken() {
@@ -89,7 +139,8 @@ function persistSession(user: UserResponse, token: string, remember: boolean) {
 export const authService = {
   async login(credentials: LoginRequest, remember: boolean) {
     const email = normalizeEmail(credentials.email)
-    const isManager = await isManagerEmail(email)
+    const fallbackRole = await getFallbackRole(email)
+    const isManager = fallbackRole === 'MANAGER' || fallbackRole === 'ADMIN'
 
     if (!shouldUseBackendAuth) {
       const sharedLogin = await loginSharedCatalogManager(
@@ -110,19 +161,11 @@ export const authService = {
         email,
       })
 
-      persistSession(
-        {
-          email,
-          name: email,
-          role: isManager ? 'MANAGER' : 'USER',
-        },
-        data.token,
-        remember,
-      )
+      persistSession(getLoginUser(data, email, fallbackRole), data.token, remember)
 
       return data
     } catch (error) {
-      if (shouldTrySharedManagerLogin(error)) {
+      if (!shouldUseBackendAuth && shouldTrySharedManagerLogin(error)) {
         try {
           const sharedLogin = await loginSharedCatalogManager(
             email,
@@ -197,7 +240,7 @@ export const authService = {
     }
 
     try {
-      return JSON.parse(value) as UserResponse
+      return applyLocalRoleOverrides(JSON.parse(value) as UserResponse)
     } catch {
       return null
     }
@@ -205,7 +248,37 @@ export const authService = {
 
   isManager() {
     const user = this.getUser()
-    return user?.role === 'MANAGER'
+    const role = normalizeRole(user?.role)
+
+    return role === 'MANAGER' || role === 'ADMIN'
+  },
+
+  canManageStore() {
+    const role = normalizeRole(this.getUser()?.role)
+
+    return role === 'MANAGER' || role === 'ADMIN'
+  },
+
+  canOperateStore() {
+    const role = normalizeRole(this.getUser()?.role)
+
+    return (
+      role === 'MANAGER' ||
+      role === 'ADMIN' ||
+      role === 'CAIXA' ||
+      role === 'CASHIER'
+    )
+  },
+
+  canScanProducts() {
+    const role = normalizeRole(this.getUser()?.role)
+
+    return (
+      role === 'MANAGER' ||
+      role === 'ADMIN' ||
+      role === 'CAIXA' ||
+      role === 'CASHIER'
+    )
   },
 
   clearSession() {
