@@ -1,31 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --color-brand-orange: #ff5a00;
-  --color-brand-orange-dark: #d94c00;
-  --color-brand-navy: #061d4f;
-  --color-brand-navy-light: #0b2a6d;
-  --color-brand-ink: #071022;
-  --color-brand-surface: #f5f7fb;
+  --color-brand-orange-dark: #d94800;
+  --color-brand-navy: #06143d;
+  --color-brand-navy-light: #10245b;
+  --color-brand-ink: #081433;
+  --color-brand-surface: #f6f7f9;
+  --color-brand-aqua: #ff5a00;
+  --color-brand-aqua-dark: #d94800;
 }
 
 @layer base {
   * {
-    @apply border-slate-200;
+    @apply border-slate-200/80;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
     @apply min-h-screen bg-brand-surface font-sans text-brand-ink antialiased;
+    background-image:
+      radial-gradient(circle at 12% 0%, rgba(255, 90, 0, 0.07), transparent 24rem),
+      radial-gradient(circle at 88% 8%, rgba(6, 20, 61, 0.045), transparent 22rem);
   }
 
   button,
   a {
-    @apply focus-visible:outline-brand-orange focus-visible:outline-2 focus-visible:outline-offset-2;
+    @apply focus-visible:outline-brand-aqua-dark focus-visible:outline-2 focus-visible:outline-offset-2;
+  }
+
+  ::selection {
+    background: rgba(255, 90, 0, 0.22);
   }
 }
 
 @layer utilities {
+  .container-store {
+    @apply mx-auto w-full max-w-[1480px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface-card {
+    @apply border border-black/[0.06] bg-white shadow-[0_12px_45px_rgba(15,23,42,0.06)];
+  }
+
   .no-scrollbar {
     scrollbar-width: none;
   }

@@ -60,12 +60,8 @@ export function useProducts(filters: ProductFilters = {}) {
 
     window.addEventListener(localProductsEvent, reloadSilently)
     window.addEventListener('storage', reloadSilently)
-    const intervalId = window.setInterval(() => {
-      void reload(false)
-    }, 5000)
 
     return () => {
-      window.clearInterval(intervalId)
       window.removeEventListener(localProductsEvent, reloadSilently)
       window.removeEventListener('storage', reloadSilently)
     }

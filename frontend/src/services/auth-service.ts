@@ -1,4 +1,4 @@
-import { api } from '../lib/api'
+﻿import { api } from '../lib/api'
 import { loginSharedCatalogManager } from '../lib/shared-product-db'
 import { isTokenActive } from '../lib/token'
 import type {
@@ -28,7 +28,16 @@ function normalizeEmail(email: string) {
 }
 
 function normalizeRole(role?: string) {
-  return role?.trim().toUpperCase() as UserRole | undefined
+  const normalized = role?.trim().toUpperCase().replace(/^ROLE_/, '')
+
+  if (normalized === 'ADMINISTRADOR') return 'ADMIN'
+  if (normalized === 'GERENTE') return 'MANAGER'
+  if (normalized === 'FUNCIONARIO' || normalized === 'FUNCIONÁRIO') {
+    return 'EMPLOYEE'
+  }
+  if (normalized === 'CLIENTE') return 'CLIENT'
+
+  return normalized as UserRole | undefined
 }
 
 function applyLocalRoleOverrides(user: UserResponse) {
@@ -79,7 +88,7 @@ async function getFallbackRole(email: string): Promise<UserRole> {
   }
 
   if (managerEmailHashes.has(emailHash)) {
-    return 'MANAGER'
+    return 'EMPLOYEE'
   }
 
   return 'USER'
@@ -123,24 +132,30 @@ function shouldTrySharedManagerLogin(error: unknown) {
   return !response || [500, 502, 503, 504].includes(response.status ?? 0)
 }
 
-function persistSession(user: UserResponse, token: string, remember: boolean) {
+function persistSession(
+  user: UserResponse,
+  token: string,
+  refreshToken: string,
+  remember: boolean,
+) {
   const storage = remember ? localStorage : sessionStorage
 
   authService.clearSession()
   storage.setItem(TOKEN_KEY, token)
-  storage.setItem(REFRESH_TOKEN_KEY, token)
+  storage.setItem(REFRESH_TOKEN_KEY, refreshToken)
   storage.setItem(USER_KEY, JSON.stringify(user))
 }
 
 /**
- * Único ponto responsável por autenticação e persistência da sessão.
- * "Lembrar de mim" usa localStorage; uma sessão comum usa sessionStorage.
+ * Ãšnico ponto responsÃ¡vel por autenticaÃ§Ã£o e persistÃªncia da sessÃ£o.
+ * "Lembrar de mim" usa localStorage; uma sessÃ£o comum usa sessionStorage.
  */
 export const authService = {
   async login(credentials: LoginRequest, remember: boolean) {
     const email = normalizeEmail(credentials.email)
+    authService.clearSession()
     const fallbackRole = await getFallbackRole(email)
-    const isManager = fallbackRole === 'MANAGER' || fallbackRole === 'ADMIN'
+    const isEmployee = fallbackRole === 'EMPLOYEE' || fallbackRole === 'ADMIN'
 
     if (!shouldUseBackendAuth) {
       const sharedLogin = await loginSharedCatalogManager(
@@ -148,7 +163,12 @@ export const authService = {
         credentials.password,
       )
 
-      persistSession(sharedLogin.user, sharedLogin.token, remember)
+      persistSession(
+        sharedLogin.user,
+        sharedLogin.token,
+        sharedLogin.refreshToken,
+        remember,
+      )
       return {
         token: sharedLogin.token,
         refreshToken: sharedLogin.refreshToken,
@@ -161,9 +181,20 @@ export const authService = {
         email,
       })
 
-      persistSession(getLoginUser(data, email, fallbackRole), data.token, remember)
+      const accessToken = data.accessToken ?? data.token
 
-      return data
+      if (!accessToken) {
+        throw new Error('Resposta de login sem token de acesso.')
+      }
+
+      persistSession(
+        getLoginUser(data, email, fallbackRole),
+        accessToken,
+        data.refreshToken,
+        remember,
+      )
+
+      return { ...data, token: accessToken }
     } catch (error) {
       if (!shouldUseBackendAuth && shouldTrySharedManagerLogin(error)) {
         try {
@@ -172,26 +203,32 @@ export const authService = {
             credentials.password,
           )
 
-          persistSession(sharedLogin.user, sharedLogin.token, remember)
+          persistSession(
+        sharedLogin.user,
+        sharedLogin.token,
+        sharedLogin.refreshToken,
+        remember,
+      )
           return {
             token: sharedLogin.token,
             refreshToken: sharedLogin.refreshToken,
           }
         } catch (sharedError) {
-          if (!isManager) {
+          if (!isEmployee) {
             throw sharedError
           }
         }
       }
 
-      if (shouldUseLocalManagerLogin(error, isManager)) {
+      if (shouldUseLocalManagerLogin(error, isEmployee)) {
         const token = createLocalToken()
         persistSession(
           {
             email,
             name: email,
-            role: 'MANAGER',
+            role: 'EMPLOYEE',
           },
+          token,
           token,
           remember,
         )
@@ -211,6 +248,9 @@ export const authService = {
   isAuthenticated() {
     const token =
       localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY)
+    const refreshToken =
+      localStorage.getItem(REFRESH_TOKEN_KEY) ??
+      sessionStorage.getItem(REFRESH_TOKEN_KEY)
     const hasInvalidProductionToken =
       !import.meta.env.DEV &&
       !shouldUseBackendAuth &&
@@ -222,7 +262,7 @@ export const authService = {
       return false
     }
 
-    const authenticated = isTokenActive(token)
+    const authenticated = isTokenActive(token) || Boolean(refreshToken)
 
     if (!authenticated) {
       this.clearSession()
@@ -246,40 +286,43 @@ export const authService = {
     }
   },
 
-  isManager() {
-    const user = this.getUser()
-    const role = normalizeRole(user?.role)
+ isManager() {
+  const user = this.getUser()
+  const role = normalizeRole(user?.role)
 
-    return role === 'MANAGER' || role === 'ADMIN'
-  },
+  return (
+    role === 'EMPLOYEE' ||
+    role === 'ADMIN' ||
+    role === 'MANAGER'
+  )
+},
 
   canManageStore() {
     const role = normalizeRole(this.getUser()?.role)
 
-    return role === 'MANAGER' || role === 'ADMIN'
+    return role === 'EMPLOYEE' || role === 'ADMIN' || role === 'MANAGER'
   },
 
-  canOperateStore() {
-    const role = normalizeRole(this.getUser()?.role)
+ canOperateStore() {
+  const role =
+    normalizeRole(this.getUser()?.role)
 
-    return (
-      role === 'MANAGER' ||
-      role === 'ADMIN' ||
-      role === 'CAIXA' ||
-      role === 'CASHIER'
-    )
-  },
-
+  return (
+    role === 'EMPLOYEE' ||
+    role === 'ADMIN' ||
+    role === 'MANAGER'
+  )
+},
   canScanProducts() {
-    const role = normalizeRole(this.getUser()?.role)
+  const role =
+    normalizeRole(this.getUser()?.role)
 
-    return (
-      role === 'MANAGER' ||
-      role === 'ADMIN' ||
-      role === 'CAIXA' ||
-      role === 'CASHIER'
-    )
-  },
+  return (
+    role === 'EMPLOYEE' ||
+    role === 'ADMIN' ||
+    role === 'MANAGER'
+  )
+},
 
   clearSession() {
     for (const storage of [localStorage, sessionStorage]) {
@@ -289,3 +332,6 @@ export const authService = {
     }
   },
 }
+
+
+

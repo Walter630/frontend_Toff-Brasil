@@ -3,6 +3,9 @@ export type CartItemResponse = {
   productId?: string
   produtoId?: string
   name?: string
+  marcaProduto?: string
+  marca?: string
+  brand?: string
   image?: string | null
   price?: number
   quantity?: number
@@ -14,12 +17,16 @@ export type CartItemResponse = {
   product?: {
     id?: string
     name?: string
+    marca?: string
+    brand?: string
     image?: string | null
     price?: number
   }
   produto?: {
     id?: string
     name?: string
+    marca?: string
+    brand?: string
     image?: string | null
     price?: number
   }

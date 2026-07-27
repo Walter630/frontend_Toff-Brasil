@@ -1,9 +1,6 @@
 import { api } from '../lib/api'
 
-export type PaymentMethod =
-  | 'PIX'
-  | 'CARTAO_CREDITO'
-  | 'CARTAO_DEBITO'
+export type PaymentMethod = 'PIX'
 
 export type PaymentMethodOption = {
   value: PaymentMethod
@@ -33,16 +30,6 @@ const paymentMethods: PaymentMethodOption[] = [
     value: 'PIX',
     label: 'Pix',
     description: 'Aprovacao rapida com QR Code ou copia e cola.',
-  },
-  {
-    value: 'CARTAO_CREDITO',
-    label: 'Cartao de credito',
-    description: 'Permite parcelamento quando o backend liberar.',
-  },
-  {
-    value: 'CARTAO_DEBITO',
-    label: 'Cartao de debito',
-    description: 'Pagamento direto no cartao.',
   },
 ]
 

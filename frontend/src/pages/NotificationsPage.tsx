@@ -99,7 +99,7 @@ export function NotificationsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-brand-orange">
-              Central do gerente
+              Central do atendente
             </p>
             <h1 className="mt-1 text-3xl font-bold text-brand-navy">
               Notificacoes do sistema
@@ -153,7 +153,7 @@ export function NotificationsPage() {
                   id="alert-description"
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Descreva o que aconteceu e onde o gerente deve conferir."
+                  placeholder="Descreva o que aconteceu e onde o atendente deve conferir."
                   className="min-h-32 w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
                 />
               </label>
@@ -163,7 +163,7 @@ export function NotificationsPage() {
                 ) : (
                   <Send className="size-4" />
                 )}
-                {saving ? 'Enviando...' : 'Enviar ao gerente'}
+                {saving ? 'Enviando...' : 'Enviar ao atendente'}
               </Button>
             </div>
           </form>

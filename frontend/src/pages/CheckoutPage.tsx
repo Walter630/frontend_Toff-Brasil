@@ -1,10 +1,10 @@
-import {
+﻿import {
   ArrowLeft,
   BadgeCheck,
   BellRing,
   Copy,
-  CreditCard,
   LoaderCircle,
+  MessageCircle,
   QrCode,
   ReceiptText,
   ShieldCheck,
@@ -16,8 +16,10 @@ import { DashboardLayout } from '../components/layout/DashboardLayout'
 import { Button } from '../components/ui/Button'
 import { getApiErrorMessage } from '../lib/api-error'
 import { stripBrandFromName } from '../lib/product-display'
+import { getPaymentWhatsappUrl } from '../lib/whatsapp'
 import { cartService } from '../services/cart-service'
 import { notificationService } from '../services/notification-service'
+import { orderService } from '../services/order-service'
 import {
   paymentService,
   type PaymentMethod,
@@ -101,12 +103,12 @@ export function CheckoutPage() {
   const [cart, setCart] = useState<CartResponse | null>(null)
   const [methods, setMethods] = useState<PaymentMethodOption[]>([])
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('PIX')
-  const [installments, setInstallments] = useState('1')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [message, setMessage] = useState('')
   const [payment, setPayment] = useState<PaymentResponse | null>(null)
+  const [pendingOrderId, setPendingOrderId] = useState('')
   const [notifyingManager, setNotifyingManager] = useState(false)
   const [managerAlertSent, setManagerAlertSent] = useState(false)
 
@@ -146,10 +148,16 @@ export function CheckoutPage() {
     setManagerAlertSent(false)
 
     try {
+      const checkout = pendingOrderId
+        ? { pedidoId: pendingOrderId, valorTotal: total }
+        : await orderService.checkout()
+
+      setPendingOrderId(checkout.pedidoId)
+
       const response = await paymentService.createPayment({
-        pedidoId: cart.id,
+        pedidoId: checkout.pedidoId,
         formaPagamento: selectedMethod,
-        valor: total,
+        valor: checkout.valorTotal || total,
       })
 
       setPayment(response)
@@ -160,18 +168,18 @@ export function CheckoutPage() {
       }
 
       if (isPaidStatus(response.status)) {
-        const managerNotified = await notifyManager(response)
+        const managerNotified = await notifyManager(response, checkout.pedidoId)
         setMessage(
           managerNotified
-            ? 'Pagamento confirmado e gerente notificado sobre a venda.'
-            : 'Pagamento confirmado, mas nao foi possivel notificar o gerente.',
+            ? 'Pagamento confirmado e atendente notificado sobre a venda.'
+            : 'Pagamento confirmado, mas não foi possível notificar o atendente.',
         )
         return
       }
 
       setMessage(
         response.message ??
-          'Pix gerado. O gerente deve ser avisado quando o backend confirmar o pagamento.',
+          'Pix gerado. O atendente deve ser avisado quando o pagamento for confirmado.',
       )
     } catch (error) {
       setMessage(getApiErrorMessage(error, 'Nao foi possivel criar pagamento.'))
@@ -189,7 +197,10 @@ export function CheckoutPage() {
     setMessage('Codigo Pix copiado.')
   }
 
-  async function notifyManager(paymentData = payment) {
+  async function notifyManager(
+    paymentData = payment,
+    orderId = pendingOrderId,
+  ) {
     if (!cart || !paymentData || managerAlertSent) {
       return managerAlertSent
     }
@@ -208,7 +219,7 @@ export function CheckoutPage() {
       await notificationService.create({
         title: `Venda Pix ${paymentData.status}`,
         description: [
-          `Pedido/carrinho: ${cart.id}`,
+          `Pedido: ${orderId || cart.id}`,
           paymentData.id ? `Pagamento: ${paymentData.id}` : '',
           `Metodo: ${paymentData.formaPagamento}`,
           `Total: ${currency.format(paymentData.valorTotal ?? total)}`,
@@ -220,11 +231,11 @@ export function CheckoutPage() {
       })
 
       setManagerAlertSent(true)
-      setMessage('Gerente notificado sobre esta venda.')
+      setMessage('Atendente notificado sobre esta venda.')
       return true
     } catch (error) {
       setMessage(
-        getApiErrorMessage(error, 'Nao foi possivel notificar o gerente.'),
+        getApiErrorMessage(error, 'Não foi possível notificar o atendente.'),
       )
       return false
     } finally {
@@ -253,8 +264,7 @@ export function CheckoutPage() {
             <div>
               <h1 className="text-2xl font-bold sm:text-3xl">Pagamento</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100/75">
-                Escolha a forma de pagamento e confirme sua compra com
-                seguranca.
+                Pague com Pix e confirme sua compra com segurança.
               </p>
             </div>
             <div className="w-fit rounded-2xl bg-white/10 px-4 py-3">
@@ -281,14 +291,14 @@ export function CheckoutPage() {
             <div className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="grid size-11 place-items-center rounded-xl bg-orange-50 text-brand-orange">
-                  <CreditCard className="size-5" />
+                  <QrCode className="size-5" />
                 </div>
                 <div>
                   <h2 className="font-bold text-brand-navy">
                     Metodo de pagamento
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Rotas integradas ao backend
+                    Pix disponível no momento
                   </p>
                 </div>
               </div>
@@ -315,28 +325,6 @@ export function CheckoutPage() {
                 ))}
               </div>
 
-              {selectedMethod === 'CARTAO_CREDITO' && (
-                <label htmlFor="installments" className="mt-5 block">
-                  <span className="mb-2 block text-sm font-medium text-brand-navy">
-                    Parcelas
-                  </span>
-                  <select
-                    id="installments"
-                    value={installments}
-                    onChange={(event) => setInstallments(event.target.value)}
-                    className="h-12 w-full rounded-xl border bg-white px-4 text-sm font-semibold text-brand-navy outline-none transition focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
-                  >
-                    {Array.from({ length: 6 }, (_, index) => index + 1).map(
-                      (installment) => (
-                        <option key={installment} value={installment}>
-                          {installment}x de {currency.format(total / installment)}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </label>
-              )}
-
               <label htmlFor="payment-notes" className="mt-5 block">
                 <span className="mb-2 block text-sm font-medium text-brand-navy">
                   Observacao
@@ -358,7 +346,7 @@ export function CheckoutPage() {
                 {paying ? (
                   <LoaderCircle className="size-4 animate-spin" />
                 ) : (
-                  <CreditCard className="size-4" />
+                  <QrCode className="size-4" />
                 )}
                 {paying ? 'Enviando...' : 'Confirmar pagamento'}
               </Button>
@@ -476,6 +464,19 @@ export function CheckoutPage() {
                         Pagamento processado pelo backend da Toff Brasil.
                       </div>
 
+                      <a
+                        href={getPaymentWhatsappUrl(cart, payment, notes)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-semibold text-white transition hover:bg-green-700"
+                      >
+                        <MessageCircle className="size-4" />
+                        Enviar comprovante no WhatsApp
+                      </a>
+
+                      <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+                        A mensagem leva os itens e o total. Anexe o comprovante na conversa.
+                      </p>
                       <div className="mt-4 rounded-2xl border border-orange-100 bg-white p-4">
                         <div className="flex items-start gap-3">
                           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-50 text-brand-orange">
@@ -483,7 +484,7 @@ export function CheckoutPage() {
                           </span>
                           <div className="min-w-0">
                             <p className="font-bold text-brand-navy">
-                              Aviso para o gerente
+                              Aviso para o atendente
                             </p>
                             <p className="mt-1 text-xs leading-5 text-slate-500">
                               {isPaidStatus(payment.status)
@@ -504,8 +505,8 @@ export function CheckoutPage() {
                             <BellRing className="size-4" />
                           )}
                           {managerAlertSent
-                            ? 'Gerente avisado'
-                            : 'Avisar gerente'}
+                            ? 'Atendente avisado'
+                            : 'Avisar atendente'}
                         </Button>
                       </div>
                     </div>
@@ -566,3 +567,4 @@ export function CheckoutPage() {
     </DashboardLayout>
   )
 }
+

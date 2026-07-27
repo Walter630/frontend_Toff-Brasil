@@ -3,6 +3,8 @@ import axios from 'axios'
 type ApiErrorBody = {
   message?: string
   error?: string
+  detail?: string
+  erros?: string[]
 }
 
 export function getApiErrorMessage(
@@ -20,6 +22,8 @@ export function getApiErrorMessage(
   return (
     error.response.data?.message ??
     error.response.data?.error ??
+    error.response.data?.detail ??
+    error.response.data?.erros?.join(' ') ??
     fallback
   )
 }

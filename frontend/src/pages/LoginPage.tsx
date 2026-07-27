@@ -35,7 +35,8 @@ export function LoginPage() {
       )
 
       const destination =
-        (location.state as { from?: string } | null)?.from ?? '/dashboard'
+        (location.state as { from?: string } | null)?.from ??
+        (authService.canManageStore() ? '/admin' : '/dashboard')
       navigate(destination, { replace: true })
     } catch (requestError) {
       setError(
@@ -51,8 +52,8 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Acesso do gerente"
-      description="Clientes nao precisam de login por enquanto. Este acesso e apenas para a equipe da Toff Brasil atualizar o catalogo."
+      title="Entrar na sua conta"
+      description="Acesse para explorar o catálogo completo, adicionar produtos ao carrinho e acompanhar seus pedidos."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
         {registrationSuccess && (
@@ -90,7 +91,7 @@ export function LoginPage() {
             Lembrar de mim
           </label>
           <button type="button" className="font-semibold text-brand-orange">
-            Acesso temporario
+            Esqueci minha senha
           </button>
         </div>
 
@@ -103,7 +104,11 @@ export function LoginPage() {
           </p>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button
+          type="submit"
+          className="h-12 w-full bg-black text-white hover:bg-slate-800 hover:text-white"
+          disabled={loading}
+        >
           {loading ? (
             <LoaderCircle className="size-4 animate-spin" />
           ) : (
@@ -115,7 +120,7 @@ export function LoginPage() {
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-500">
-        Ainda nao tem conta?{' '}
+        Ainda não tem conta?{' '}
         <Link to="/cadastro" className="font-semibold text-brand-orange">
           Criar conta
         </Link>
@@ -124,7 +129,7 @@ export function LoginPage() {
       <p className="mt-3 text-center text-sm text-slate-500">
         Quer apenas ver os produtos?{' '}
         <Link to="/catalogo" className="font-semibold text-brand-orange">
-          Ir para o catalogo
+          Ir para o catálogo
         </Link>
       </p>
     </AuthLayout>

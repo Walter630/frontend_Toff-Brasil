@@ -5,9 +5,12 @@ export type Product = {
   description: string
   price: number
   image: string
+  images?: string[]
+  featured?: boolean
   categoria: string
   marca?: string
   brand?: string
+  type?: string
   estoque: number
   status?:
     | 'DISPONIVEL'

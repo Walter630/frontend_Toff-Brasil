@@ -70,9 +70,16 @@ dispositivos ou navegadores.
 ## Variáveis de ambiente
 
 ```env
-VITE_API_URL=http://localhost:8081/api
+VITE_API_URL=/api
+VITE_BACKEND_URL=http://localhost:8081
 VITE_API_ASSET_URL=http://localhost:8081
+VITE_AUTH_SOURCE=api
+VITE_PRODUCTS_SOURCE=api
 ```
+
+No desenvolvimento, `VITE_API_URL=/api` usa o proxy configurado no Vite. O
+proxy repassa `/api/*` para `VITE_BACKEND_URL`, mantendo o frontend em
+`localhost:5173` e evitando bloqueio de CORS enquanto as rotas sao testadas.
 
 ## Observações do contrato atual
 

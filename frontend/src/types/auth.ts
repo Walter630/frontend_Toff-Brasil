@@ -1,9 +1,9 @@
-export type UserRole =
-  | 'USER'
-  | 'MANAGER'
+﻿export type UserRole =
   | 'ADMIN'
-  | 'CAIXA'
-  | 'CASHIER'
+  | 'USER'
+  | 'CLIENT'
+  | 'EMPLOYEE'
+  | 'MANAGER'
 
 export type LoginRequest = {
   email: string
@@ -11,10 +11,13 @@ export type LoginRequest = {
 }
 
 export type LoginResponse = {
-  token: string
+  token?: string
+  accessToken?: string
   refreshToken: string
+
   user?: Partial<UserResponse>
   usuario?: Partial<UserResponse>
+
   role?: UserRole
   perfil?: UserRole
 }
@@ -23,8 +26,8 @@ export type RegisterRequest = {
   email: string
   password: string
   phone: string
-  name: string
-  role?: Extract<UserRole, 'USER'>
+  username: string
+  role?: UserRole
 }
 
 export type UserResponse = {

@@ -1,4 +1,4 @@
-import { ArrowRight, LoaderCircle, UserPlus } from 'lucide-react'
+﻿import { ArrowRight, LoaderCircle, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -30,7 +30,7 @@ export function RegisterPage() {
 
     try {
       await authService.register({
-        name: String(form.get('name')),
+        username: String(form.get('name')),
         email: String(form.get('email')),
         phone: String(form.get('phone')),
         password,
@@ -55,8 +55,8 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Crie sua conta"
-      description="Comece a organizar seu catálogo de impressões e filamentos."
+      title="Criar sua conta"
+      description="Cadastre-se para acessar o catálogo, montar seu carrinho e acompanhar pedidos."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
         <Input
@@ -128,7 +128,11 @@ export function RegisterPage() {
           </p>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button
+          type="submit"
+          className="h-12 w-full bg-black text-white hover:bg-slate-800 hover:text-white"
+          disabled={loading}
+        >
           {loading ? (
             <LoaderCircle className="size-4 animate-spin" />
           ) : (
@@ -148,3 +152,4 @@ export function RegisterPage() {
     </AuthLayout>
   )
 }
+

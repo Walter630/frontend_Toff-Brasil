@@ -11,7 +11,11 @@ type ProductPayload = {
   name: string
   description: string
   image: string
+  images?: string[]
+  featured?: boolean
   categoria: string
+  marca?: string
+  type?: string
   price: number
   estoque: number
   status?: Product['status']

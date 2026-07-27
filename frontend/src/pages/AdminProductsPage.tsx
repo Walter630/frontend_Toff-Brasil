@@ -1,6 +1,7 @@
-import type { ChangeEvent, FormEvent } from 'react'
+﻿import type { ChangeEvent, FormEvent } from 'react'
 
 import {
+  ArrowLeft,
   Download,
   ImagePlus,
   LoaderCircle,
@@ -9,6 +10,7 @@ import {
   RefreshCw,
   ScanLine,
   Search,
+  Star,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -39,6 +41,9 @@ type ProductForm = {
   price: string
   estoque: string
   codigoBarras: string
+  marca: string
+  type: string
+  featured: boolean
   categoria: ProductCreatePayload['categoria']
   status: NonNullable<ProductCreatePayload['status']>
 }
@@ -49,6 +54,9 @@ const initialForm: ProductForm = {
   price: '',
   estoque: '0',
   codigoBarras: '',
+  marca: '',
+  type: '',
+  featured: false,
   categoria: 'FILAMENTOS',
   status: 'DISPONIVEL',
 }
@@ -81,6 +89,7 @@ export function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [adminSearch, setAdminSearch] = useState('')
   const [adminCategory, setAdminCategory] = useState('Todos')
+  const [adminBrand, setAdminBrand] = useState('Todas')
   const [adminPage, setAdminPage] = useState(1)
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false)
   const editingProduct = useMemo(
@@ -93,13 +102,28 @@ export function AdminProductsPage() {
     return products.filter((product) => {
       const matchesSearch =
         !search ||
-        normalizeText(`${product.name} ${product.description}`).includes(search)
+        normalizeText(
+          `${product.name} ${product.description} ${product.marca ?? ''} ${product.type ?? ''}`,
+        ).includes(search)
       const matchesCategory =
         adminCategory === 'Todos' || product.categoria === adminCategory
+      const matchesBrand =
+        adminBrand === 'Todas' || product.marca === adminBrand
 
-      return matchesSearch && matchesCategory
+      return matchesSearch && matchesCategory && matchesBrand
     })
-  }, [adminCategory, adminSearch, products])
+  }, [adminBrand, adminCategory, adminSearch, products])
+  const adminBrandOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          products
+            .map((product) => product.marca)
+            .filter((brand): brand is string => Boolean(brand)),
+        ),
+      ].sort((first, second) => first.localeCompare(second)),
+    [products],
+  )
   const adminTotalPages = Math.max(
     1,
     Math.ceil(visibleAdminProducts.length / adminPageSize),
@@ -111,7 +135,11 @@ export function AdminProductsPage() {
 
   const updateField =
     (field: keyof ProductForm) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (
+      event: ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >,
+    ) => {
       setForm((current) => ({ ...current, [field]: event.target.value }))
     }
 
@@ -160,6 +188,9 @@ export function AdminProductsPage() {
       price: String(product.price),
       estoque: String(product.estoque),
       codigoBarras: product.codigoBarras ?? product.barcode ?? '',
+      marca: product.marca ?? product.brand ?? '',
+      type: product.type ?? '',
+      featured: Boolean(product.featured),
       categoria: product.categoria as ProductCreatePayload['categoria'],
       status: product.status ?? 'DISPONIVEL',
     })
@@ -167,9 +198,7 @@ export function AdminProductsPage() {
   }
 
   const handleDelete = async (product: Product) => {
-    const canDelete = window.confirm(
-      `Apagar "${product.name}" do catalogo?`,
-    )
+    const canDelete = window.confirm(`Apagar "${product.name}" do catalogo?`)
 
     if (!canDelete) {
       return
@@ -209,8 +238,8 @@ export function AdminProductsPage() {
       return
     }
 
-    if (!form.name.trim() || !form.description.trim()) {
-      setSubmitError('Preencha nome e descricao.')
+    if (!form.name.trim() || !form.description.trim() || !form.marca.trim()) {
+      setSubmitError('Preencha nome, descricao e marca.')
       return
     }
 
@@ -227,11 +256,31 @@ export function AdminProductsPage() {
     setSaving(true)
 
     try {
+      let imageUrl = currentProduct?.image ?? ''
+
+      if (image) {
+        try {
+          imageUrl = await productService.uploadImage(image)
+        } catch (uploadError) {
+          setSubmitError(
+            getApiErrorMessage(
+              uploadError,
+              'Nao foi possivel enviar a imagem. Verifique sua conexao e tente novamente.',
+            ),
+          )
+          return
+        }
+      }
+
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
-        image: image?.dataUrl ?? currentProduct?.image ?? '',
+        image: imageUrl,
+        images: currentProduct?.images,
+        featured: form.featured,
         categoria: form.categoria,
+        marca: form.marca.trim(),
+        type: form.type.trim() || undefined,
         price,
         estoque,
         codigoBarras: form.codigoBarras.trim() || undefined,
@@ -260,7 +309,7 @@ export function AdminProductsPage() {
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminCategory, adminSearch])
+  }, [adminBrand, adminCategory, adminSearch])
 
   useEffect(() => {
     if (adminPage > adminTotalPages) {
@@ -270,17 +319,26 @@ export function AdminProductsPage() {
 
   return (
     <DashboardLayout>
-      <main className="p-5 sm:p-8">
-        <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
+      <main className="container-store py-6 sm:py-9">
+        <Link
+          to="/admin"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 shadow-sm transition hover:border-orange-200 hover:text-brand-orange"
+        >
+          <ArrowLeft className="size-4" />
+          Voltar ao painel
+        </Link>
+
+        <div className="mt-5 flex flex-col gap-5 rounded-[2rem] border border-black/[0.05] bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,.08)] sm:flex-row sm:items-end sm:justify-between sm:p-8">
           <div>
-            <p className="text-sm font-semibold text-brand-orange">
-              Administracao
+            <p className="text-[10px] font-black tracking-[0.18em] text-brand-orange uppercase">
+              Gestão do catálogo
             </p>
-            <h1 className="mt-1 text-3xl font-bold text-brand-navy">
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
               Produtos
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Cadastre, edite e apague produtos no banco central do catalogo.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Cadastre produtos completos, organize estoque e escolha os
+              destaques exibidos na loja.
             </p>
           </div>
           <Button
@@ -293,13 +351,15 @@ export function AdminProductsPage() {
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_520px]">
+        <div className="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_500px]">
           <form
+            id="cadastro"
             onSubmit={(event) => void handleSubmit(event)}
-            className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6"
+            className="relative overflow-hidden rounded-[1.75rem] border border-black/[0.05] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,.07)] sm:p-7"
           >
-            <div className="mb-5 flex flex-col gap-1 border-b pb-4">
-              <h2 className="text-lg font-bold text-brand-navy">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-orange via-orange-400 to-brand-aqua" />
+            <div className="mb-6 flex flex-col gap-1 border-b border-slate-100 pb-5">
+              <h2 className="text-xl font-extrabold text-slate-900">
                 {editingProduct ? 'Editar produto' : 'Cadastrar produto'}
               </h2>
               <p className="text-sm text-slate-500">
@@ -318,15 +378,32 @@ export function AdminProductsPage() {
                 maxLength={120}
                 required
               />
+              <Input
+                id="product-brand"
+                label="Marca"
+                value={form.marca}
+                onChange={updateField('marca')}
+                maxLength={80}
+                placeholder="Ex.: Masterprint"
+                required
+              />
+              <Input
+                id="product-type"
+                label="Tipo"
+                value={form.type}
+                onChange={updateField('type')}
+                maxLength={80}
+                placeholder="Ex.: PLA, PETG ou acessorio"
+              />
               <label htmlFor="product-category" className="block">
-                <span className="mb-2 block text-sm font-medium text-brand-navy">
+                <span className="text-brand-navy mb-2 block text-sm font-medium">
                   Categoria
                 </span>
                 <select
                   id="product-category"
                   value={form.categoria}
                   onChange={updateField('categoria')}
-                  className="h-12 w-full rounded-xl border bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                  className="text-brand-ink focus:border-brand-orange h-12 w-full rounded-xl border bg-white px-4 text-sm transition outline-none focus:ring-4 focus:ring-orange-100"
                 >
                   {productCategoryOptions.map((category) => (
                     <option key={category.value} value={category.value}>
@@ -377,14 +454,14 @@ export function AdminProductsPage() {
                 </div>
               </div>
               <label htmlFor="product-status" className="block sm:col-span-2">
-                <span className="mb-2 block text-sm font-medium text-brand-navy">
+                <span className="text-brand-navy mb-2 block text-sm font-medium">
                   Status
                 </span>
                 <select
                   id="product-status"
                   value={form.status}
                   onChange={updateField('status')}
-                  className="h-12 w-full rounded-xl border bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                  className="text-brand-ink focus:border-brand-orange h-12 w-full rounded-xl border bg-white px-4 text-sm transition outline-none focus:ring-4 focus:ring-orange-100"
                 >
                   {statusOptions.map((status) => (
                     <option key={status.value} value={status.value}>
@@ -393,8 +470,34 @@ export function AdminProductsPage() {
                   ))}
                 </select>
               </label>
-              <label htmlFor="product-description" className="block sm:col-span-2">
-                <span className="mb-2 block text-sm font-medium text-brand-navy">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      featured: event.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 size-4 accent-amber-500"
+                />
+                <span>
+                  <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <Star className="size-4 fill-amber-400 text-amber-500" />
+                    Exibir nos produtos em destaque
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    O produto será priorizado na vitrine inicial e na ordenação
+                    por destaques.
+                  </span>
+                </span>
+              </label>
+              <label
+                htmlFor="product-description"
+                className="block sm:col-span-2"
+              >
+                <span className="text-brand-navy mb-2 block text-sm font-medium">
                   Descricao
                 </span>
                 <textarea
@@ -404,7 +507,7 @@ export function AdminProductsPage() {
                   rows={5}
                   maxLength={700}
                   required
-                  className="w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm text-brand-ink outline-none transition placeholder:text-slate-400 focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                  className="text-brand-ink focus:border-brand-orange w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm transition outline-none placeholder:text-slate-400 focus:ring-4 focus:ring-orange-100"
                 />
               </label>
             </div>
@@ -420,7 +523,7 @@ export function AdminProductsPage() {
               <div className="flex flex-col gap-4 lg:flex-row">
                 <label
                   htmlFor="product-image"
-                  className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-xl border bg-white px-5 text-center text-sm text-slate-500 transition hover:border-brand-orange hover:text-brand-navy lg:w-72"
+                  className="hover:border-brand-orange hover:text-brand-navy flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-xl border bg-white px-5 text-center text-sm text-slate-500 transition lg:w-72"
                 >
                   {image ? (
                     <img
@@ -436,22 +539,25 @@ export function AdminProductsPage() {
                     />
                   ) : (
                     <>
-                      <ImagePlus className="mb-3 size-8 text-brand-orange" />
+                      <ImagePlus className="text-brand-orange mb-3 size-8" />
                       Selecione a imagem no computador
                     </>
                   )}
                 </label>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-brand-navy">
+                  <p className="text-brand-navy text-sm font-semibold">
                     Imagem do produto
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">
-                    O arquivo escolhido e convertido para WebP, redimensionado e
-                    enviado em qualidade menor para reduzir peso no catalogo.
+                    O arquivo escolhido e convertido para WebP quando o
+                    navegador oferece suporte, ou JPEG como alternativa, e
+                    redimensionado para reduzir o peso no catalogo.
                   </p>
                   {image && (
                     <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                      <span>Original: {formatFileSize(image.originalSize)}</span>
+                      <span>
+                        Original: {formatFileSize(image.originalSize)}
+                      </span>
                       <span>Otimizada: {formatFileSize(image.size)}</span>
                       <span>
                         Tamanho: {image.width}x{image.height}px
@@ -459,10 +565,10 @@ export function AdminProductsPage() {
                       <a
                         href={image.dataUrl}
                         download={image.fileName}
-                        className="inline-flex items-center gap-2 font-semibold text-brand-orange hover:text-brand-orange-dark"
+                        className="text-brand-orange hover:text-brand-orange-dark inline-flex items-center gap-2 font-semibold"
                       >
                         <Download className="size-4" />
-                        Baixar WebP
+                        Baixar imagem otimizada
                       </a>
                     </div>
                   )}
@@ -488,11 +594,7 @@ export function AdminProductsPage() {
             )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={resetForm}
-              >
+              <Button type="button" variant="secondary" onClick={resetForm}>
                 {editingProduct ? 'Cancelar edicao' : 'Limpar'}
               </Button>
               <Button type="submit" disabled={saving}>
@@ -506,39 +608,52 @@ export function AdminProductsPage() {
             </div>
           </form>
 
-          <aside className="rounded-2xl border bg-white p-5 shadow-sm">
+          <aside className="rounded-[1.75rem] border border-black/[0.05] bg-white p-5 shadow-[0_16px_50px_rgba(15,23,42,.07)]">
             <div className="flex flex-col gap-4 border-b pb-4">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-orange-50 text-brand-orange">
+                <span className="text-brand-orange flex size-10 items-center justify-center rounded-xl bg-orange-50">
                   <PackagePlus className="size-5" />
                 </span>
                 <div>
                   <p className="text-sm text-slate-500">Produtos cadastrados</p>
-                  <p className="text-2xl font-bold text-brand-navy">
+                  <p className="text-brand-navy text-2xl font-bold">
                     {loading ? '...' : products.length}
                   </p>
                 </div>
               </div>
 
               <label className="relative block">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={adminSearch}
                   onChange={(event) => setAdminSearch(event.target.value)}
                   placeholder="Buscar produto para editar"
-                  className="h-11 w-full rounded-xl border bg-white pl-10 pr-3 text-sm outline-none focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                  className="focus:border-brand-orange h-11 w-full rounded-xl border bg-white pr-3 pl-10 text-sm outline-none focus:ring-4 focus:ring-orange-100"
                 />
               </label>
 
               <select
                 value={adminCategory}
                 onChange={(event) => setAdminCategory(event.target.value)}
-                className="h-11 w-full rounded-xl border bg-white px-3 text-sm font-semibold text-brand-navy outline-none focus:border-brand-orange focus:ring-4 focus:ring-orange-100"
+                className="text-brand-navy focus:border-brand-orange h-11 w-full rounded-xl border bg-white px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-100"
               >
                 <option value="Todos">Todas as categorias</option>
                 {productCategoryOptions.map((category) => (
                   <option key={category.value} value={category.value}>
                     {category.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={adminBrand}
+                onChange={(event) => setAdminBrand(event.target.value)}
+                className="text-brand-navy focus:border-brand-orange h-11 w-full rounded-xl border bg-white px-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-orange-100"
+              >
+                <option value="Todas">Todas as marcas</option>
+                {adminBrandOptions.map((brand) => (
+                  <option key={brand} value={brand}>
+                    {brand}
                   </option>
                 ))}
               </select>
@@ -564,32 +679,37 @@ export function AdminProductsPage() {
                 paginatedAdminProducts.map((product) => (
                   <div
                     key={product.id}
-                    className="rounded-xl border p-3 transition hover:border-brand-orange"
+                    className="hover:border-brand-orange rounded-xl border p-3 transition"
                   >
-                    <Link
-                      to={`/produtos/${product.id}`}
-                      className="flex gap-3"
-                    >
+                    <Link to={`/produtos/${product.id}`} className="flex gap-3">
                       <img
                         src={product.image}
                         alt={product.name}
                         className="size-16 rounded-lg object-contain ring-1 ring-slate-100"
                         loading="lazy"
                         onError={(event) => {
-                          event.currentTarget.src = '/products/dragao-articulado.webp'
+                          event.currentTarget.src =
+                            '/products/dragao-articulado.webp'
                         }}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-brand-navy">
+                        <span className="text-brand-navy block truncate text-sm font-semibold">
                           {product.name}
                         </span>
+                        {product.featured && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black tracking-wide text-amber-800 uppercase">
+                            <Star className="size-3 fill-current" />
+                            Em destaque
+                          </span>
+                        )}
                         <span className="mt-1 block text-xs text-slate-500">
+                          {product.marca ? `${product.marca} - ` : ''}
                           {product.categoria} - {product.estoque} em estoque
                         </span>
                         <span className="mt-1 block truncate text-[11px] text-slate-400">
                           ID: {product.id}
                         </span>
-                        <span className="mt-1 block text-xs font-semibold text-brand-orange">
+                        <span className="text-brand-orange mt-1 block text-xs font-semibold">
                           {statusOptions.find(
                             (status) => status.value === product.status,
                           )?.label ?? 'Disponivel'}
@@ -600,7 +720,7 @@ export function AdminProductsPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(product)}
-                        className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold text-brand-navy transition hover:border-brand-orange hover:text-brand-orange"
+                        className="text-brand-navy hover:border-brand-orange hover:text-brand-orange inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-3 text-xs font-semibold transition"
                       >
                         <Pencil className="size-3.5" />
                         Editar
@@ -628,9 +748,11 @@ export function AdminProductsPage() {
               <div className="mt-4 flex items-center justify-between border-t pt-4 text-sm">
                 <button
                   type="button"
-                  onClick={() => setAdminPage((current) => Math.max(1, current - 1))}
+                  onClick={() =>
+                    setAdminPage((current) => Math.max(1, current - 1))
+                  }
                   disabled={adminPage === 1}
-                  className="rounded-lg border px-3 py-2 font-semibold text-brand-navy disabled:cursor-not-allowed disabled:opacity-40"
+                  className="text-brand-navy rounded-lg border px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Anterior
                 </button>
@@ -645,7 +767,7 @@ export function AdminProductsPage() {
                     )
                   }
                   disabled={adminPage === adminTotalPages}
-                  className="rounded-lg border px-3 py-2 font-semibold text-brand-navy disabled:cursor-not-allowed disabled:opacity-40"
+                  className="text-brand-navy rounded-lg border px-3 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Proxima
                 </button>

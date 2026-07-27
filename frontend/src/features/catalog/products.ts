@@ -1156,7 +1156,7 @@ export const products: Product[] = catalogProducts.map((product) => ({
   ativo: true,
   status: getLaunchStatus(product),
   statusMessage: isLaunchPresaleProduct(product)
-    ? 'Produto em pre-venda. Fale com o gerente para reservar.'
+    ? 'Produto em pré-venda. Fale com o atendente para reservar.'
     : product.statusMessage,
   createdAt: '2026-07-03T00:00:00',
   updatedAt: '2026-07-03T00:00:00',

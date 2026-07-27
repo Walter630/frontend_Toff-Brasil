@@ -20,7 +20,11 @@ type ProductPayload = {
   name: string
   description: string
   image: string
+  images?: string[]
+  featured?: boolean
   categoria: string
+  marca?: string
+  type?: string
   price: number
   estoque: number
   status?: Product['status']
@@ -156,7 +160,11 @@ export function createLocalProduct(payload: ProductPayload) {
     description: payload.description,
     price: payload.price,
     image: payload.image,
+    images: payload.images,
+    featured: payload.featured,
     categoria: payload.categoria,
+    marca: payload.marca,
+    type: payload.type,
     estoque: payload.estoque,
     status: payload.status,
     createdAt: now,
@@ -181,7 +189,11 @@ export function updateLocalProduct(id: string, payload: ProductPayload) {
     description: payload.description,
     price: payload.price,
     image: payload.image,
+    images: payload.images,
+    featured: payload.featured,
     categoria: payload.categoria,
+    marca: payload.marca,
+    type: payload.type,
     estoque: payload.estoque,
     status: payload.status,
     updatedAt: new Date().toISOString(),

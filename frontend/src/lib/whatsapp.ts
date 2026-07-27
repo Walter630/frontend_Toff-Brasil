@@ -1,4 +1,4 @@
-import type { CartItemResponse, CartResponse } from '../types/cart'
+﻿import type { CartItemResponse, CartResponse } from '../types/cart'
 import type { Product } from '../types/product'
 import { getProductPublicName, stripBrandFromName } from './product-display'
 
@@ -19,6 +19,19 @@ export function getProductWhatsappUrl(product: Product) {
     `Preco: ${currency.format(product.price)}.`,
   ].join(' ')
 
+  const contactPath = managerWhatsapp ? `/${managerWhatsapp}` : '/'
+
+  return `https://wa.me${contactPath}?text=${encodeURIComponent(message)}`
+}
+
+export function getProductRestockWhatsappUrl(product: Product) {
+  const message = [
+    `Olá, gostaria de saber a previsão de reposição deste produto da ToffBrasil: ${getProductPublicName(
+      product,
+    )}.`,
+    `Categoria: ${product.categoria}.`,
+    `Preço anunciado: ${currency.format(product.price)}.`,
+  ].join(' ')
   const contactPath = managerWhatsapp ? `/${managerWhatsapp}` : '/'
 
   return `https://wa.me${contactPath}?text=${encodeURIComponent(message)}`
@@ -50,6 +63,63 @@ export function getCartWhatsappUrl(cart: CartResponse) {
     ...itemLines,
     `Total: ${currency.format(cart.valorTotal)}.`,
   ].join(' ')
+  const contactPath = managerWhatsapp ? `/${managerWhatsapp}` : '/'
+
+  return `https://wa.me${contactPath}?text=${encodeURIComponent(message)}`
+}
+
+type PaymentWhatsappData = {
+  id?: string
+  status: string
+  formaPagamento: string
+  valorTotal?: number
+}
+
+export function getPaymentWhatsappUrl(
+  cart: CartResponse,
+  payment: PaymentWhatsappData,
+  notes?: string,
+) {
+  const itemLines = cart.items.map((item, index) => {
+    const quantity = getCartItemQuantity(item)
+    const unitPrice =
+      item.unitPrice ??
+      item.precoUnitario ??
+      item.price ??
+      item.product?.price ??
+      item.produto?.price ??
+      0
+    const itemTotal = item.total ?? item.subtotal ?? unitPrice * quantity
+
+    return `- ${quantity}x ${getCartItemName(item, index)}: ${currency.format(itemTotal)}`
+  })
+  const calculatedTotal = cart.items.reduce((total, item) => {
+    const quantity = getCartItemQuantity(item)
+    const unitPrice =
+      item.unitPrice ??
+      item.precoUnitario ??
+      item.price ??
+      item.product?.price ??
+      item.produto?.price ??
+      0
+
+    return total + (item.total ?? item.subtotal ?? unitPrice * quantity)
+  }, 0)
+  const total = payment.valorTotal ?? cart.valorTotal ?? calculatedTotal
+  const message = [
+    'Ola! Efetuei o pagamento da minha compra na Toff Brasil.',
+    `Pedido/carrinho: ${cart.id}.`,
+    payment.id ? `Pagamento: ${payment.id}.` : '',
+    `Metodo: ${payment.formaPagamento}.`,
+    `Status informado: ${payment.status}.`,
+    'Itens:',
+    ...itemLines,
+    `Total: ${currency.format(total)}.`,
+    notes?.trim() ? `Observacao: ${notes.trim()}` : '',
+    'Vou enviar o comprovante de pagamento nesta conversa.',
+  ]
+    .filter(Boolean)
+    .join('\n')
   const contactPath = managerWhatsapp ? `/${managerWhatsapp}` : '/'
 
   return `https://wa.me${contactPath}?text=${encodeURIComponent(message)}`

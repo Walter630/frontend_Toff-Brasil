@@ -32,6 +32,11 @@ export type OrderCreatePayload = {
   baixarEstoque?: boolean
 }
 
+export type OrderCheckoutResponse = {
+  pedidoId: string
+  valorTotal: number
+}
+
 type RawOrder = Record<string, unknown>
 
 function asString(value: unknown, fallback = '') {
@@ -144,6 +149,20 @@ function normalizeOrdersResponse(data: unknown) {
   return Array.isArray(orders) ? orders.map(normalizeOrder) : []
 }
 
+function normalizeCheckoutResponse(data: unknown): OrderCheckoutResponse {
+  const response =
+    data && typeof data === 'object' ? (data as RawOrder) : ({} as RawOrder)
+  const checkout =
+    response.data && typeof response.data === 'object'
+      ? (response.data as RawOrder)
+      : response
+
+  return {
+    pedidoId: asString(checkout.pedidoId ?? checkout.id),
+    valorTotal: asNumber(checkout.valorTotal ?? checkout.total),
+  }
+}
+
 export const orderService = {
   async listMine() {
     const { data } = await api.get('/pedidos')
@@ -153,6 +172,17 @@ export const orderService = {
   async create(payload: OrderCreatePayload) {
     const { data } = await api.post('/pedidos', payload)
     return normalizeOrder(data)
+  },
+
+  async checkout() {
+    const { data } = await api.post('/pedidos/checkout')
+    const checkout = normalizeCheckoutResponse(data)
+
+    if (!checkout.pedidoId) {
+      throw new Error('O checkout não retornou o ID do pedido.')
+    }
+
+    return checkout
   },
 
   async confirmSale(id: string) {

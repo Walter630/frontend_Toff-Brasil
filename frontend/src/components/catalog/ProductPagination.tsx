@@ -23,8 +23,8 @@ export function ProductPagination({
   const end = Math.min(page * pageSize, totalItems)
 
   return (
-    <div className="mt-8 flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-slate-500">
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="hidden text-xs font-bold text-slate-500 xl:block">
         Mostrando {start}-{end} de {totalItems} produtos
       </p>
       <div className="flex items-center gap-2">
@@ -32,18 +32,18 @@ export function ProductPagination({
           aria-label="Pagina anterior"
           disabled={page === 1}
           onClick={() => onPageChange(page - 1)}
-          className="grid size-10 place-items-center rounded-xl border bg-white text-brand-navy transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+          className="grid size-9 place-items-center rounded-lg border bg-white text-brand-navy transition hover:border-brand-orange hover:text-brand-orange disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronLeft className="size-5" />
         </button>
-        <span className="min-w-24 text-center text-sm font-semibold text-brand-navy">
+        <span className="min-w-16 text-center text-xs font-extrabold text-brand-navy">
           {page} de {totalPages}
         </span>
         <button
           aria-label="Proxima pagina"
           disabled={page === totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="grid size-10 place-items-center rounded-xl border bg-white text-brand-navy transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+          className="grid size-9 place-items-center rounded-lg border bg-white text-brand-navy transition hover:border-brand-orange hover:text-brand-orange disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronRight className="size-5" />
         </button>

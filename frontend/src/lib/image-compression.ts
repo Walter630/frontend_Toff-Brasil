@@ -5,6 +5,7 @@ const imageQualities = [0.76, 0.68, 0.6, 0.52, 0.44]
 
 export type CompressedImage = {
   dataUrl: string
+  blob: Blob
   fileName: string
   size: number
   originalSize: number
@@ -24,7 +25,9 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-export async function compressProductImage(file: File): Promise<CompressedImage> {
+export async function compressProductImage(
+  file: File,
+): Promise<CompressedImage> {
   if (!file.type.startsWith('image/')) {
     throw new Error('Selecione um arquivo de imagem.')
   }
@@ -36,7 +39,10 @@ export async function compressProductImage(file: File): Promise<CompressedImage>
   const source = await loadImage(file)
   const sourceWidth = getImageWidth(source)
   const sourceHeight = getImageHeight(source)
-  const scale = Math.min(1, maxImageDimension / Math.max(sourceWidth, sourceHeight))
+  const scale = Math.min(
+    1,
+    maxImageDimension / Math.max(sourceWidth, sourceHeight),
+  )
   const width = Math.max(1, Math.round(sourceWidth * scale))
   const height = Math.max(1, Math.round(sourceHeight * scale))
   const canvas = document.createElement('canvas')
@@ -54,20 +60,29 @@ export async function compressProductImage(file: File): Promise<CompressedImage>
 
   let compressedBlob: Blob | null = null
 
-  for (const quality of imageQualities) {
-    compressedBlob = await canvasToBlob(canvas, 'image/webp', quality)
+  let outputType = 'image/webp'
 
-    if (compressedBlob.size <= targetImageBytes) {
+  for (const quality of imageQualities) {
+    compressedBlob = await tryCanvasToBlob(canvas, outputType, quality)
+
+    if (!compressedBlob && outputType === 'image/webp') {
+      outputType = 'image/jpeg'
+      compressedBlob = await tryCanvasToBlob(canvas, outputType, quality)
+    }
+
+    if (compressedBlob && compressedBlob.size <= targetImageBytes) {
       break
     }
   }
 
   const finalBlob =
-    compressedBlob ?? (await canvasToBlob(canvas, 'image/jpeg', imageQualities[0]))
+    compressedBlob ??
+    (await canvasToBlob(canvas, 'image/jpeg', imageQualities[0]))
 
   return {
     dataUrl: await blobToDataUrl(finalBlob),
-    fileName: getOptimizedFileName(file.name),
+    blob: finalBlob,
+    fileName: getOptimizedFileName(file.name, finalBlob.type),
     size: finalBlob.size,
     originalSize: file.size,
     width,
@@ -131,6 +146,16 @@ async function canvasToBlob(
   })
 }
 
+async function tryCanvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+) {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, type, quality)
+  })
+}
+
 async function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -141,8 +166,9 @@ async function blobToDataUrl(blob: Blob) {
   })
 }
 
-function getOptimizedFileName(fileName: string) {
+function getOptimizedFileName(fileName: string, mimeType: string) {
   const baseName = fileName.replace(/\.[^.]+$/, '').trim() || 'produto'
+  const extension = mimeType === 'image/webp' ? 'webp' : 'jpg'
 
-  return `${baseName}-otimizado.webp`
+  return `${baseName}-otimizado.${extension}`
 }

@@ -47,9 +47,9 @@ export function getProductAvailability(product: Product): ProductAvailability {
 
   if (status === 'EM_PRODUCAO') {
     return {
-      label: 'Em producao',
+      label: 'Em produção',
       description:
-        product.statusMessage ?? 'Produto em producao, consulte previsao.',
+        product.statusMessage ?? 'Produto em produção, consulte a previsão.',
       tone: 'warning',
       canContact: true,
     }
@@ -57,10 +57,10 @@ export function getProductAvailability(product: Product): ProductAvailability {
 
   if (status === 'PRE_VENDA') {
     return {
-      label: 'Pre-venda',
+      label: 'Pré-venda',
       description:
         product.statusMessage ??
-        `${product.estoque} un. previstas. Reserve com o gerente.`,
+        `Previsão inicial de ${product.estoque} unidade${product.estoque === 1 ? '' : 's'}. Fale com nossa equipe para reservar.`,
       tone: 'warning',
       canContact: true,
     }
@@ -71,15 +71,15 @@ export function getProductAvailability(product: Product): ProductAvailability {
       label: 'Sem estoque',
       description:
         product.statusMessage ??
-        'Produto indisponivel no momento. Avise o gerente para reposicao.',
+        'Produto sem estoque no momento. Consulte a previsão de reposição.',
       tone: 'neutral',
       canContact: false,
     }
   }
 
   return {
-    label: 'Disponivel',
-    description: `${product.estoque} em estoque`,
+    label: 'Disponível',
+    description: `${product.estoque} unidade${product.estoque === 1 ? '' : 's'} em estoque`,
     tone: 'available',
     canContact: true,
   }
