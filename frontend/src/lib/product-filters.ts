@@ -97,7 +97,9 @@ export function filterProductsByDetails(
 ) {
   return products.filter((product) => {
     const text = productText(product)
-    const matchesMaterial = material === 'Todos' || text.includes(material)
+    const matchesMaterial =
+      material === 'Todos' ||
+      (product.type ? normalizeText(product.type) === material : new RegExp(`\\b${material}\\b`).test(text))
     const productBrand = getProductBrand(product)
     const normalizedProductBrand = productBrand
       ? normalizeText(productBrand)
@@ -152,10 +154,17 @@ export function filterProductsByMaterialQuick(
   if (quick === 'PRE_VENDA') {
     return products.filter((product) => product.status === 'PRE_VENDA')
   }
+  // Usa o campo `type` do produto quando disponível (mais confiável que texto livre)
+  // e word boundary no texto como fallback para evitar falsos positivos como
+  // "ABSOLUTE" sendo capturado pelo filtro "ABS".
+  const wordBoundary = new RegExp(`\\b${quick}\\b`)
   return products.filter((product) => {
+    if (product.type) {
+      return normalizeText(product.type) === quick
+    }
     const text = normalizeText(
       `${product.name} ${product.description} ${product.marca ?? ''} ${product.brand ?? ''}`,
     )
-    return text.includes(quick)
+    return wordBoundary.test(text)
   })
 }

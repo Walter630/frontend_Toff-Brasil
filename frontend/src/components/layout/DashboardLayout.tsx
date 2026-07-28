@@ -1,6 +1,7 @@
 import type { FormEvent, ReactNode } from 'react'
 
 import {
+  AlertTriangle,
   BadgePercent,
   BellRing,
   CheckCircle2,
@@ -227,6 +228,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const [openMegaMenu, setOpenMegaMenu] = useState<string | null>(null)
   const [search, setSearch] = useState(
     () => new URLSearchParams(location.search).get('busca') ?? '',
@@ -271,6 +273,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     setSearch(new URLSearchParams(location.search).get('busca') ?? '')
   }, [location.search])
+
+  useEffect(() => {
+    if (!logoutDialogOpen) {
+      return
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLogoutDialogOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [logoutDialogOpen])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -329,7 +346,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const handleLogout = () => {
+    setMenuOpen(false)
+    setLogoutDialogOpen(true)
+  }
+
+  const confirmLogout = () => {
     authService.clearSession()
+    setLogoutDialogOpen(false)
     setMenuOpen(false)
     navigate('/dashboard')
   }
@@ -776,6 +799,74 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </p>
             </div>
           </aside>
+        </div>
+      )}
+
+      {logoutDialogOpen && (
+        <div className="fixed inset-0 z-[70] grid place-items-center p-4">
+          <button
+            type="button"
+            aria-label="Cancelar saída da conta"
+            className="absolute inset-0 bg-brand-navy/75 backdrop-blur-sm"
+            onClick={() => setLogoutDialogOpen(false)}
+          />
+
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            aria-describedby="logout-dialog-description"
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.35)]"
+          >
+            <div className="h-1.5 bg-gradient-to-r from-brand-orange via-orange-400 to-brand-aqua" />
+            <button
+              type="button"
+              aria-label="Fechar confirmação"
+              onClick={() => setLogoutDialogOpen(false)}
+              className="absolute top-5 right-5 grid size-9 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-brand-navy"
+            >
+              <X className="size-4" />
+            </button>
+
+            <div className="p-6 sm:p-8">
+              <div className="grid size-14 place-items-center rounded-2xl bg-orange-100 text-brand-orange ring-8 ring-orange-50">
+                <AlertTriangle className="size-7" />
+              </div>
+
+              <h2
+                id="logout-dialog-title"
+                className="mt-6 text-2xl font-black text-brand-navy"
+              >
+                Deseja sair da conta?
+              </h2>
+              <p
+                id="logout-dialog-description"
+                className="mt-2 text-sm leading-6 text-slate-500"
+              >
+                Você precisará entrar novamente para acessar seus pedidos,
+                carrinho e dados da conta.
+              </p>
+
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setLogoutDialogOpen(false)}
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-brand-navy transition hover:border-brand-aqua hover:bg-brand-aqua/10"
+                >
+                  Continuar na conta
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmLogout}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-extrabold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700"
+                >
+                  <LogOut className="size-4" />
+                  Sair da conta
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 

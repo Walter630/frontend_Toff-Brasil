@@ -111,7 +111,26 @@ export function ProductDetailsPage() {
         : availability.description
       : ''
   const productVariants = useMemo(() => {
-    if (!product || !productBrand) return []
+    if (!product) return []
+
+    // Variantes por variantGroup (peças/placas com variantes explícitas)
+    if (product.variantGroup) {
+      return catalogProducts
+        .filter(
+          (item) =>
+            item.ativo && item.variantGroup === product.variantGroup,
+        )
+        .sort((left, right) =>
+          (left.variantLabel ?? left.name).localeCompare(
+            right.variantLabel ?? right.name,
+            'pt-BR',
+            { sensitivity: 'base', numeric: true },
+          ),
+        )
+    }
+
+    // Variantes por agrupamento automático (filamentos)
+    if (!productBrand) return []
 
     return catalogProducts
       .filter(
@@ -574,78 +593,174 @@ export function ProductDetailsPage() {
 
                 {productVariants.length > 1 && (
                   <section className="mt-5">
-                    <div>
-                      <p className="text-sm text-slate-700">
-                        Cor:{' '}
-                        <strong className="font-black text-slate-950">
-                          {selectedOptionName}
-                        </strong>
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-400">
-                        <span>
-                          Linha {[productBrand, detailTitle].filter(Boolean).join(' ')} ·{' '}
-                          {currency.format(product.price)}
-                        </span>
-                        <span>
-                          Estoque:{' '}
-                          <strong
-                            className={
-                              product.estoque > 0
-                                ? 'text-emerald-600'
-                                : 'text-red-600'
-                            }
-                          >
-                            {product.estoque > 0
-                              ? `${product.estoque} unidade(s)`
-                              : 'esgotado'}
+                    {product.variantGroup ? (
+                      /* ── Variantes de peças/placas: imagem + label + preço ── */
+                      <div>
+                        <p className="text-sm text-slate-700">
+                          Modelo:{' '}
+                          <strong className="font-black text-slate-950">
+                            {product.variantLabel ?? product.name}
                           </strong>
-                        </span>
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-400">
+                          <span>
+                            {currency.format(product.price)}
+                          </span>
+                          <span>
+                            Estoque:{' '}
+                            <strong
+                              className={
+                                product.estoque > 0
+                                  ? 'text-emerald-600'
+                                  : 'text-red-600'
+                              }
+                            >
+                              {product.estoque > 0
+                                ? `${product.estoque} unidade(s)`
+                                : 'esgotado'}
+                            </strong>
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {productVariants.map((variant) => {
+                            const variantAvailability =
+                              getProductAvailability(variant)
+                            const unavailable =
+                              variantAvailability.tone === 'neutral'
+                            const selected = variant.id === product.id
+                            const label =
+                              variant.variantLabel ??
+                              getProductPublicName(variant)
+
+                            return (
+                              <button
+                                key={variant.id}
+                                type="button"
+                                onClick={() => handleSelectVariant(variant)}
+                                title={`${label} — ${currency.format(variant.price)} — ${variantAvailability.label}`}
+                                aria-label={`${label}, ${currency.format(variant.price)}, ${variantAvailability.label}`}
+                                aria-pressed={selected}
+                                className={`group relative flex w-20 flex-col items-center gap-1.5 rounded-2xl border-2 p-2 pb-2.5 text-center transition-all duration-150 hover:-translate-y-0.5 ${
+                                  selected
+                                    ? 'border-brand-orange bg-orange-50 shadow-[0_0_0_3px_rgba(255,90,0,.10)]'
+                                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
+                                }`}
+                              >
+                                {/* imagem circular igual filamento */}
+                                <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-100 bg-white">
+                                  <img
+                                    src={variant.image}
+                                    alt=""
+                                    loading="lazy"
+                                    className={`size-full object-contain p-0.5 transition-opacity ${
+                                      unavailable ? 'opacity-50 grayscale' : ''
+                                    }`}
+                                  />
+                                  {unavailable && (
+                                    <span className="absolute inset-0 grid place-items-center text-red-500">
+                                      <X className="size-6 stroke-[3]" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </span>
+
+                                {/* label */}
+                                <span
+                                  className={`block text-[11px] font-black leading-tight ${
+                                    selected ? 'text-brand-orange' : 'text-slate-700'
+                                  }`}
+                                >
+                                  {label}
+                                </span>
+
+                                {/* preço */}
+                                <span
+                                  className={`block text-[10px] font-bold leading-none ${
+                                    selected ? 'text-slate-800' : 'text-slate-400'
+                                  }`}
+                                >
+                                  {currency.format(variant.price)}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* ── Variantes de filamentos: bolinhas com imagem ── */
+                      <div>
+                        <p className="text-sm text-slate-700">
+                          Cor:{' '}
+                          <strong className="font-black text-slate-950">
+                            {selectedOptionName}
+                          </strong>
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-400">
+                          <span>
+                            Linha {[productBrand, detailTitle].filter(Boolean).join(' ')} ·{' '}
+                            {currency.format(product.price)}
+                          </span>
+                          <span>
+                            Estoque:{' '}
+                            <strong
+                              className={
+                                product.estoque > 0
+                                  ? 'text-emerald-600'
+                                  : 'text-red-600'
+                              }
+                            >
+                              {product.estoque > 0
+                                ? `${product.estoque} unidade(s)`
+                                : 'esgotado'}
+                            </strong>
+                          </span>
+                        </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {productVariants.map((variant) => {
-                        const variantAvailability =
-                          getProductAvailability(variant)
-                        const unavailable =
-                          variantAvailability.tone === 'neutral'
-                        const selected = variant.id === product.id
-                        const variantName = getProductPublicName(variant)
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {productVariants.map((variant) => {
+                            const variantAvailability =
+                              getProductAvailability(variant)
+                            const unavailable =
+                              variantAvailability.tone === 'neutral'
+                            const selected = variant.id === product.id
+                            const variantName = getProductPublicName(variant)
 
-                        return (
-                          <button
-                            key={variant.id}
-                            type="button"
-                            onClick={() => handleSelectVariant(variant)}
-                            title={`${variantName} — ${variantAvailability.label}`}
-                            aria-label={`${variantName}, ${variantAvailability.label}`}
-                            aria-pressed={selected}
-                            className={`relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 bg-white p-1 transition hover:-translate-y-0.5 ${
-                              selected
-                                ? 'border-brand-orange shadow-[0_0_0_3px_rgba(255,90,0,.12)]'
-                                : 'border-slate-200 hover:border-slate-400'
-                            }`}
-                          >
-                            <img
-                              src={variant.image}
-                              alt=""
-                              loading="lazy"
-                              className={`size-full rounded-full object-contain ${
-                                unavailable ? 'opacity-60' : ''
-                              }`}
-                            />
-                            {unavailable && (
-                              <span className="absolute inset-0 grid place-items-center text-red-600">
-                                <X
-                                  className="size-7 stroke-[3]"
-                                  aria-hidden="true"
+                            return (
+                              <button
+                                key={variant.id}
+                                type="button"
+                                onClick={() => handleSelectVariant(variant)}
+                                title={`${variantName} — ${variantAvailability.label}`}
+                                aria-label={`${variantName}, ${variantAvailability.label}`}
+                                aria-pressed={selected}
+                                className={`relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 bg-white p-1 transition hover:-translate-y-0.5 ${
+                                  selected
+                                    ? 'border-brand-orange shadow-[0_0_0_3px_rgba(255,90,0,.12)]'
+                                    : 'border-slate-200 hover:border-slate-400'
+                                }`}
+                              >
+                                <img
+                                  src={variant.image}
+                                  alt=""
+                                  loading="lazy"
+                                  className={`size-full rounded-full object-contain ${
+                                    unavailable ? 'opacity-60' : ''
+                                  }`}
                                 />
-                              </span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
+                                {unavailable && (
+                                  <span className="absolute inset-0 grid place-items-center text-red-600">
+                                    <X
+                                      className="size-7 stroke-[3]"
+                                      aria-hidden="true"
+                                    />
+                                  </span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </section>
                 )}
 

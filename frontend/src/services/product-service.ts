@@ -13,6 +13,7 @@ import {
   listSharedProducts,
   updateSharedProduct,
 } from '../lib/shared-product-db'
+import { applyVariantGroup } from '../lib/product-variant-groups'
 import type { Product } from '../types/product'
 
 type ProductFilters = {
@@ -142,6 +143,10 @@ function normalizeProduct(product: RawProduct): Product {
     barcode:
       asString(product.barcode ?? product.codigoBarras ?? product.ean) ||
       undefined,
+    variantGroup:
+      asString(product.variantGroup ?? product.variant_group) || undefined,
+    variantLabel:
+      asString(product.variantLabel ?? product.variant_label) || undefined,
     createdAt: asString(product.createdAt ?? product.criadoEm, now),
     updatedAt: asString(product.updatedAt ?? product.atualizadoEm, now),
   }
@@ -150,7 +155,7 @@ function normalizeProduct(product: RawProduct): Product {
 function normalizeProductsResponse(data: unknown): Product[] {
   if (Array.isArray(data)) {
     return data
-      .map((product) => normalizeProduct(product as RawProduct))
+      .map((product) => applyVariantGroup(normalizeProduct(product as RawProduct)))
       .filter((product) => product.ativo)
   }
 
@@ -164,7 +169,7 @@ function normalizeProductsResponse(data: unknown): Product[] {
 
   return Array.isArray(products)
     ? products
-        .map((product) => normalizeProduct(product as RawProduct))
+        .map((product) => applyVariantGroup(normalizeProduct(product as RawProduct)))
         .filter((product) => product.ativo)
     : []
 }
@@ -258,7 +263,7 @@ async function deleteBackendProduct(id: string) {
 
 async function findBackendProductById(id: string) {
   const { data } = await api.get(`/produtos/${encodeURIComponent(id)}`)
-  return normalizeProduct(data as RawProduct)
+  return applyVariantGroup(normalizeProduct(data as RawProduct))
 }
 
 function requireConfiguredProductDatabase(): never {

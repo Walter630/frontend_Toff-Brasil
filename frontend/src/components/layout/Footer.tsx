@@ -148,13 +148,13 @@ export function Footer() {
               className="flex items-start justify-center gap-2 hover:text-white sm:justify-start"
             >
               <Mail className="mt-0.5 size-4 shrink-0 text-brand-orange" />
-              contato@toffbr.com.br
+              comercial@toffbr.com.br
             </a>
             <p className="flex items-start justify-center gap-2 sm:justify-start">
               <MapPin className="mt-0.5 size-4 shrink-0 text-brand-orange" />
               Atendimento e envio para todo o Brasil
             </p>
-            <p>Segunda a sexta, das 8h às 18h.</p>
+            <p>Segunda a sexta, das 8h às 20h.</p>
           </div>
         </div>
       </div>

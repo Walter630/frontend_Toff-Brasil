@@ -3,7 +3,7 @@ import type { Product } from '../types/product'
 
 const localProductsKey = 'toffco-local-products'
 const localProductsVersionKey = 'toffco-local-products-version'
-const localProductsVersion = '2026-07-06-masterprint-prices-v1'
+const localProductsVersion = '2026-07-23-variant-groups-v1'
 export const localProductsEvent = 'toffco-local-products-change'
 const seedProductsById = new Map(
   seedProducts.map((product) => [product.id, product]),
@@ -94,6 +94,8 @@ function syncSeedProducts(products: Product[]) {
       price: seedProduct.price,
       status: seedProduct.status,
       statusMessage: seedProduct.statusMessage,
+      variantGroup: seedProduct.variantGroup,
+      variantLabel: seedProduct.variantLabel,
     }
   })
   const missingSeedProducts = seedProducts.filter(

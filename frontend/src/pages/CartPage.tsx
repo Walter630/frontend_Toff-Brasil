@@ -308,6 +308,7 @@ export function CartPage() {
                 const itemTotal = getItemTotal(item)
                 const itemImage = getItemImage(item)
                 const itemBrand = getItemBrand(item)
+                const productId = getItemProductId(item)
                 const unitPrice = getItemUnitPrice(item)
                 const quantity = getItemQuantity(item)
                 const isUpdating = updatingItemId === item.id
@@ -338,8 +339,17 @@ export function CartPage() {
                       <div className="min-w-0">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <h2 className="line-clamp-2 text-base font-bold leading-snug text-slate-700 sm:text-lg">
-                              {getItemTitle(item, index)}
+                            <h2 className="line-clamp-2 text-base leading-snug font-bold text-slate-700 sm:text-lg">
+                              {productId ? (
+                                <Link
+                                  to={`/produtos/${encodeURIComponent(productId)}`}
+                                  className="transition hover:text-brand-orange hover:underline"
+                                >
+                                  {getItemTitle(item, index)}
+                                </Link>
+                              ) : (
+                                getItemTitle(item, index)
+                              )}
                             </h2>
                             {itemBrand && (
                               <p className="mt-1 text-xs font-semibold text-brand-orange">
@@ -347,7 +357,16 @@ export function CartPage() {
                               </p>
                             )}
                             <p className="mt-1 hidden text-xs text-slate-400 sm:block">
-                              ID do produto: {getItemProductId(item) ?? 'nao informado'}
+                              {productId ? (
+                                <Link
+                                  to={`/produtos/${encodeURIComponent(productId)}`}
+                                  className="font-semibold text-brand-orange hover:underline"
+                                >
+                                  Ver detalhes do produto
+                                </Link>
+                              ) : (
+                                'Produto sem página vinculada'
+                              )}
                             </p>
                           </div>
                           <strong className="text-lg font-black text-slate-950 sm:text-xl">

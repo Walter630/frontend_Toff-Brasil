@@ -10,8 +10,10 @@ export type AdminSummary = {
 
 export type AdminCartItem = {
   itemId: string
+  produtoId?: string
   nomeProduto: string
   marcaProduto: string
+  imagemProduto?: string
   quantidade: number
   precoUnitario: number
   subtotal: number
@@ -123,6 +125,9 @@ function normalizeCartItem(value: unknown): AdminCartItem {
 
   return {
     itemId: asString(item.itemId ?? item.id ?? item.produtoId ?? item.productId),
+    produtoId:
+      asString(item.produtoId ?? item.productId ?? item.produtoUuid) ||
+      undefined,
     nomeProduto: asString(
       item.nomeProduto ??
         item.productName ??
@@ -139,6 +144,13 @@ function normalizeCartItem(value: unknown): AdminCartItem {
       item.marcaProduto ?? item.productBrand ?? item.marca ?? item.brand,
       '—',
     ),
+    imagemProduto:
+      asString(
+        item.imagemProduto ??
+          item.productImage ??
+          item.imagem ??
+          item.image,
+      ) || undefined,
     quantidade,
     precoUnitario,
     subtotal: asNumber(item.subtotal ?? item.total, quantidade * precoUnitario),

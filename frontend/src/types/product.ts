@@ -22,6 +22,8 @@ export type Product = {
   statusMessage?: string
   codigoBarras?: string
   barcode?: string
+  variantGroup?: string
+  variantLabel?: string
   createdAt: string
   updatedAt: string
 }

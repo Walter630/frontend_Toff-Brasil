@@ -579,6 +579,7 @@ export function AdminDashboardPage() {
 
 function CartCard({ cart }: { cart: AdminCart }) {
   const hasPhone = cart.userPhone && cart.userPhone !== '—'
+  const [expandedItemId, setExpandedItemId] = useState('')
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:border-brand-orange/30 hover:shadow-md">
@@ -613,24 +614,92 @@ function CartCard({ cart }: { cart: AdminCart }) {
 
       {/* Items */}
       <div className="divide-y divide-slate-100">
-        {cart.itens.slice(0, 4).map((item) => (
-          <div key={item.itemId || item.nomeProduto} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-brand-navy">{item.nomeProduto}</p>
-              {item.marcaProduto !== '—' && (
-                <p className="mt-0.5 truncate text-xs font-semibold text-brand-orange">
-                  Marca: {item.marcaProduto}
-                </p>
+        {cart.itens.slice(0, 4).map((item) => {
+          const itemKey = item.itemId || item.nomeProduto
+          const expanded = expandedItemId === itemKey
+
+          return (
+            <div key={itemKey}>
+              <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() =>
+                  setExpandedItemId((current) =>
+                    current === itemKey ? '' : itemKey,
+                  )
+                }
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-orange-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border bg-slate-50 text-brand-orange">
+                    {item.imagemProduto ? (
+                      <img
+                        src={item.imagemProduto}
+                        alt=""
+                        className="size-full object-contain"
+                      />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-brand-navy">
+                      {item.nomeProduto}
+                    </p>
+                    {item.marcaProduto !== '—' && (
+                      <p className="mt-0.5 truncate text-xs font-semibold text-brand-orange">
+                        Marca: {item.marcaProduto}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {item.quantidade}× {currency.format(item.precoUnitario)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <strong className="text-sm font-bold text-brand-navy">
+                    {currency.format(item.subtotal)}
+                  </strong>
+                  <ChevronRight
+                    className={`size-4 text-slate-400 transition ${expanded ? 'rotate-90' : ''}`}
+                  />
+                </div>
+              </button>
+
+              {expanded && (
+                <div className="border-t bg-slate-50/80 px-4 py-3">
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="block text-slate-400">Marca</span>
+                      <strong className="mt-0.5 block text-brand-navy">
+                        {item.marcaProduto}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="block text-slate-400">Quantidade</span>
+                      <strong className="mt-0.5 block text-brand-navy">
+                        {item.quantidade} unidade(s)
+                      </strong>
+                    </div>
+                  </div>
+                  {item.produtoId ? (
+                    <Link
+                      to={`/produtos/${encodeURIComponent(item.produtoId)}`}
+                      className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg bg-brand-navy px-3 text-xs font-bold text-white transition hover:bg-brand-navy-light"
+                    >
+                      <Eye className="size-4" />
+                      Abrir produto
+                    </Link>
+                  ) : (
+                    <p className="mt-3 text-xs text-slate-400">
+                      O backend ainda não informou o ID deste produto.
+                    </p>
+                  )}
+                </div>
               )}
-              <p className="mt-0.5 text-xs text-slate-400">
-                {item.quantidade}× {currency.format(item.precoUnitario)}
-              </p>
             </div>
-            <strong className="shrink-0 text-sm font-bold text-brand-navy">
-              {currency.format(item.subtotal)}
-            </strong>
-          </div>
-        ))}
+          )
+        })}
         {cart.itens.length > 4 && (
           <p className="px-4 py-2 text-center text-xs font-semibold text-slate-400">
             + {cart.itens.length - 4} produto(s)

@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react'
 
 import {
+  ArrowLeft,
   Barcode,
   CheckCircle2,
   FileText,
@@ -12,6 +13,7 @@ import {
   Search,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { BarcodeScannerModal } from '../components/barcode/BarcodeScannerModal'
 import { CatalogState } from '../components/catalog/CatalogState'
@@ -255,6 +257,14 @@ export function InPersonOrderPage() {
   return (
     <DashboardLayout>
       <main className="p-5 sm:p-8">
+        <Link
+          to="/dashboard"
+          className="mb-5 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-extrabold text-brand-navy transition hover:border-brand-orange hover:bg-orange-50 hover:text-brand-orange"
+        >
+          <ArrowLeft className="size-4" />
+          Voltar
+        </Link>
+
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-brand-orange text-sm font-semibold">
